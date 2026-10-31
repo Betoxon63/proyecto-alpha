@@ -1,0 +1,25 @@
+# Entornos virtuales de Python.
+venv/
+.venv/
+env/
+
+# Variables de entorno y credenciales.
+.env
+*.env
+.env.*
+
+# Archivos compilados y caché de Python/Django.
+__pycache__/
+*.py[cod]
+db.sqlite3
+staticfiles/
+
+# Dependencias y compilación de React/Node.
+node_modules/
+dist/
+build/
+
+# Archivos de sistema e IDE.
+.DS_Store
+.vscode/
+.idea/
