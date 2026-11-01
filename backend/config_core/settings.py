@@ -1,25 +1,23 @@
-
-# Importaci
+import os
 from pathlib import Path
+from datetime import timedelta
+import dj_database_url
+from dotenv import load_dotenv
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Cargar variables de entorno desde .env.
+load_dotenv()
+
+# Construir la ruta base del proyecto.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Configuración de seguridad y depuración.
+SECRET_KEY = os.environ.get('SECRET_KEY', 'clave-secreta-desarrollo-proyecto-alpha-fyag-2026')
+DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
+# Permitir todas las direcciones IP para desarrollo.
+ALLOWED_HOSTS = ['*']
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-nz^3k5189!3wz*h+g28kcqv^=92n_%**6m$zd4r#p@v@zkk%*y'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
-
-
-# Application definition
-
+# Aplicaciones instaladas.
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -40,7 +38,9 @@ INSTALLED_APPS = [
     'cardex_auditoria',
 ]
 
+# Configuración de middleware.
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -52,6 +52,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'config_core.urls'
 
+# Configuración de plantillas.
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -59,6 +60,7 @@ TEMPLATES = [
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -70,59 +72,102 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config_core.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/6.1/ref/settings/#databases
-
+# Configuración a Supabase.
 DATABASES = {
+    'default': dj_database_url.config(
+        default=os.environ.get('DATABASE_URL'),
+        conn_max_age=0,
+    )
+}
+
+# Caché en memoria para el control de fuerza bruta.
+CACHES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-alpha-security-cache',
     }
 }
 
+# Modelo de usuario personalizado para la matriz RBAC.
+AUTH_USER_MODEL = 'usuarios_rbac.Usuario'
 
-# Password validation
-# https://docs.djangoproject.com/en/6.1/ref/settings/#auth-password-validators
-
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+# Encriptación PBKDF2 con SHA-256.
+PASSWORD_HASHERS = [
+    'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+    'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
 ]
 
+# Configuración de DRF y obligatoriedad de autenticación.
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    )
+}
 
-# Internationalization
-# https://docs.djangoproject.com/en/6.1/topics/i18n/
+# Tokens JWT Rotativos.
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
+    'REFRESH_TOKEN_LIFETIME': timedelta(hours=8),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'UPDATE_LAST_LOGIN': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'USER_ID_FIELD': 'id_usuario',
+    'USER_ID_CLAIM': 'user_id',
+}
 
-LANGUAGE_CODE = 'en-us'
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+CORS_ALLOW_CREDENTIALS = True
 
-TIME_ZONE = 'UTC'
+# Seguridad adicional para proteger contra ataques de clickjacking y XSS.
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 
+# Internacionalización.
+LANGUAGE_CODE = 'es-cl'
+TIME_ZONE = 'America/Santiago'
 USE_I18N = True
-
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/6.1/howto/static-files/
-
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
-# Email
-# https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
-
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
+# Bitácora de auditoría.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'auditoria_fmt': {
+            'format': '[{asctime}] {levelname} | {messsage}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'auditoria_fmt',
+        },
+        'archivo_auditoria': {
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'auditoria_seguridad.log',
+            'formatter': 'auditoria_fmt',
+        },
+    },
+    'loggers': {
+        'auditoria_alpha': {
+            'handlers': ['console', 'archivo_auditoria'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
     },
 }
