@@ -2,8 +2,9 @@ import axios from 'axios';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api';
 
-// Access Token almacenado en memoria volátil.
+// Access Token almacenado en la memoria volátil.
 let accessTokenMemory = null;
+let refreshPromise = null;
 
 export const setAccessToken = (token) => {
     accessTokenMemory = token;
@@ -14,16 +15,20 @@ export const getAccessToken = () => accessTokenMemory;
 export const setRefreshTokenCookie = (refreshToken) => {
     const secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
     document.cookie = `alpha_refresh_token=${encodeURIComponent(refreshToken)}; max-age=28800; path=/; SameSite=Strict${secureFlag}`;
+    sessionStorage.setItem('alpha_refresh_backup', refreshToken);
 };
 
 export const getRefreshTokenCookie = () => {
     const match = document.cookie.match(/(?:^|;\s*)alpha_refresh_token=([^;]*)/);
-    return match ? decodeURIComponent(match[1]) : null;
+    if (match) return decodeURIComponent(match[1]);
+    return sessionStorage.getItem('alpha_refresh_backup');
 };
 
 export const clearAuthTokens = () => {
     accessTokenMemory = null;
+    refreshPromise = null;
     document.cookie = 'alpha_refresh_token=; max-age=0; path=/; SameSite=Strict';
+    sessionStorage.removeItem('alpha_refresh_backup');
     sessionStorage.removeItem('alpha_usuario');
 };
 
@@ -60,22 +65,36 @@ api.interceptors.response.use(
             originalRequest._retry = true;
             const refreshToken = getRefreshTokenCookie();
 
-            if (refreshToken) {
-                try {
-                    const res = await axios.post(`${API_BASE_URL}/token/refresh/`, {
-                        refresh: refreshToken,
-                    });
-                    setAccessToken(res.data.access);
-                    if (res.data.refresh) {
-                        setRefreshTokenCookie(res.data.refresh);
-                    }
-                    originalRequest.headers.Authorization = `Bearer ${res.data.access}`;
-                    return api(originalRequest);
-                } catch (refreshError) {
-                    clearAuthTokens();
-                    window.location.href = '/login';
-                    return Promise.reject(refreshError);
+            if (!refreshToken) {
+                clearAuthTokens();
+                window.location.href = '/login';
+                return Promise.reject(error);
+            }
+
+            try {
+                if (!refreshPromise) {
+                    refreshPromise = axios
+                        .post(`${API_BASE_URL}/token/refresh/`, { refresh: refreshToken })
+                        .then((res) => {
+                            const nuevoAccess = res.data.access;
+                            setAccessToken(nuevoAccess);
+                            if (res.data.request) {
+                                setRefreshTokenCookie(res.data.refresh);
+                            }
+                            return nuevoAccess;
+                        })
+                        .finally(() => {
+                            refreshPromise = null;
+                        });
                 }
+
+                const nuevoToken = await refreshPromise;
+                originalRequest.headers.Authorization = `Bearer ${nuevoToken}`;
+                return api(originalRequest);
+            } catch (refreshError) {
+                clearAuthTokens();
+                window.location.href = '/login';
+                return Promise.reject(refreshError);
             }
         }
         return Promise.reject(error);
