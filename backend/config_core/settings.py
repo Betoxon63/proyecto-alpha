@@ -119,18 +119,26 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
 }
 
+# Configuración de CORS.
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOW_CREDENTIALS = True
+
+cors_origins_env = os.environ.get('CORS_ALLOWED_ORIGINS', '')
+if cors_origins_env:
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins_env.split(',') if origin.strip()]
 
 # Seguridad adicional para proteger contra ataques de clickjacking y XSS.
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
+
 if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
 
 # Internacionalización.
 LANGUAGE_CODE = 'es-cl'
@@ -148,7 +156,7 @@ LOGGING = {
     'disable_existing_loggers': False,
     'formatters': {
         'auditoria_fmt': {
-            'format': '[{asctime}] {levelname} | {messsage}',
+            'format': '[{asctime}] {levelname} | {message}',
             'style': '{',
         },
     },

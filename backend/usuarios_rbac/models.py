@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import AbstractUser, BaseUserManager, PermissionsMixin
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 
 
 class Rol(models.Model):
@@ -46,7 +46,7 @@ class UsuarioManager(BaseUserManager):
         extra_fields.setdefault('id_rol', rol_admin)
         return self.create_user(correo_electronico, nombre, rut, password, **extra_fields)
 
-class Usuario(AbstractUser, PermissionsMixin):
+class Usuario(AbstractBaseUser, PermissionsMixin):
     id_usuario = models.AutoField(primary_key=True)
     nombre = models.TextField()
     rut = models.TextField(unique=True)
