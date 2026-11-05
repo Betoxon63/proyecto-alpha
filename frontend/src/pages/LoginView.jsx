@@ -13,27 +13,50 @@ const LoginView = ({ onLoginSuccess, mensajeInactividad }) => {
     const manejarSubmit = async (e) => {
         e.preventDefault();
         setErrorMsg('');
+
+        const correoLimpio = correo.trim();
+        const regexCorreo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (!correoLimpio || !password) {
+            setBloqueado429(false);
+            setErrorMsg('Por favor, complete su correo electrónico y contraseña.');
+            return;
+        }
+
+        if (!regexCorreo.test(correoLimpio)) {
+            setBloqueado429(false);
+            setErrorMsg('Ingrese un formato de correo electrónico válido (ejemplo: usuario@fyag.cl).');
+            return;
+        }
+
         setCargando(true);
 
         try {
-            const usuario = await loginUsuario(correo, password);
+            const usuario = await loginUsuario(correoLimpio, password);
             setBloqueado429(false);
             onLoginSuccess(usuario);
             navigate('/bodega/inventario');
         } catch (err) {
-            const status = err.response?.status;
-            const detalle = err.response?.data?.detail;
+            if (err.response) {
+                const status = err.response.status;
+                const detalle = err.response.data?.detail;
 
-            if (status === 429) {
-                setBloqueado429(true);
-                setErrorMsg(
-                    detalle || 'Demasiados intentos fallidos (HTTP 429). Acceso bloqueado por 10 minutos.'
-                );
-            } else if (status === 401) {
-                setBloqueado429(false);
-                setErrorMsg('Credenciales inválidas (HTTP 401). Verifique su correo o contraseña.');
+                if (status === 429) {
+                    setBloqueado429(true);
+                    setErrorMsg(detalle || 'Se ha superado el límite de intentos permitidos. El acceso se encuentra bloqueado por 10 minutos.');
+                } else if (status === 401) {
+                    setBloqueado429(false);
+                    setErrorMsg(detalle || 'Credenciales inválidas. Verifique su correo electrónico y contraseña.');
+                } else if (status === 400) {
+                    setBloqueado429(false);
+                    setErrorMsg(detalle || 'Los datos ingresados no son válidos. Revise los campos e intente nuevamente.');
+                } else {
+                    setBloqueado429(false);
+                    setErrorMsg('Ocurrió un problema en el servidor al procesar su solicitud. Intente nuevamente más tarde.');
+                }
             } else {
-                setErrorMsg('Error de conexión con el servidor.');
+                setBloqueado429(false);
+                setErrorMsg('Error de conexión con el servidor. Verifique su conexión a internet o que el servicio esté activo.');
             }
         } finally {
             setCargando(false);
@@ -48,7 +71,7 @@ const LoginView = ({ onLoginSuccess, mensajeInactividad }) => {
                     <p>Sistema Logístico Proyecto Alpha</p>
                 </div>
 
-                {mensajeInactividad && (
+                {mensajeInactividad && !errorMsg && (
                     <div className='alerta-error'>{mensajeInactividad}</div>
                 )}
 
@@ -56,7 +79,7 @@ const LoginView = ({ onLoginSuccess, mensajeInactividad }) => {
                     <div className={`alerta-error ${bloqueado429 ? 'alerta-bloqueado' : ''}`}>{errorMsg}</div>
                 )}
 
-                <form onSubmit={manejarSubmit} className='form-grid'>
+                <form onSubmit={manejarSubmit} className='form-grid' noValidate>
                     <label>
                         Correo Electrónico
                         <input 
