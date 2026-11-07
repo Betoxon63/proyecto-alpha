@@ -1,0 +1,195 @@
+/* Estilos para el Módulo de Facturas y 3 Descuentos Comerciales (HU-08 / CP-04) */
+
+.facturas-container {
+  max-width: 820px;
+  margin: 0 auto;
+  background-color: #ffffff;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  padding: 24px 30px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.facturas-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 16px;
+}
+
+.facturas-icon-badge {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background-color: #ecfdf5;
+  color: #15803d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.facturas-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.facturas-subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin: 2px 0 0;
+}
+
+.facturas-success-alert {
+  background-color: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  color: #065f46;
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+}
+
+.facturas-grid-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.facturas-grid-row-3 {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1.2fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.facturas-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 6px;
+}
+
+.facturas-select,
+.facturas-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1.5px solid #cbd5e1;
+  font-size: 13px;
+  color: #1e293b;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.facturas-select:focus,
+.facturas-input:focus {
+  border-color: #1b5e20;
+}
+
+.facturas-discounts-panel {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+
+.facturas-discounts-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.facturas-discounts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.facturas-discount-label {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.facturas-discount-input {
+  width: 100%;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  margin-top: 4px;
+  box-sizing: border-box;
+  font-size: 13px;
+}
+
+.facturas-totals-breakdown {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px dashed #cbd5e1;
+  text-align: center;
+}
+
+.facturas-total-label {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.facturas-total-bruto {
+  font-size: 14px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.facturas-total-neto {
+  font-size: 15px;
+  font-weight: 800;
+  color: #1b5e20;
+}
+
+.facturas-total-iva {
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.facturas-total-final {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.facturas-btn-submit {
+  width: 100%;
+  background-color: #1b5e20;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 14px;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.facturas-btn-submit:hover {
+  background-color: #144918;
+}

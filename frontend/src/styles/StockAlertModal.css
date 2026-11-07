@@ -1,0 +1,180 @@
+/* Estilos para el Modal Preventivo de Inventario Crítico (HU-03) */
+
+.stock-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+
+.stock-modal-container {
+  background-color: #ffffff;
+  border-radius: 16px;
+  max-width: 560px;
+  width: 100%;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  border: 1px solid #fcd34d;
+}
+
+.stock-modal-header {
+  background-color: #fef3c7;
+  padding: 16px 20px;
+  border-bottom: 1px solid #fde68a;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stock-modal-header-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stock-modal-icon-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background-color: #fde68a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #b45309;
+}
+
+.stock-modal-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #92400e;
+}
+
+.stock-modal-subtitle {
+  font-size: 12px;
+  color: #b45309;
+}
+
+.stock-modal-btn-close {
+  background: none;
+  border: none;
+  color: #92400e;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.stock-modal-body {
+  padding: 20px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.stock-modal-description {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 14px;
+}
+
+.stock-modal-empty {
+  padding: 24px;
+  text-align: center;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.stock-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stock-modal-item {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #fee2e2;
+  background-color: #fff5f5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stock-modal-item-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: #991b1b;
+}
+
+.stock-modal-item-code {
+  font-size: 11.5px;
+  color: #7f1d1d;
+  margin-top: 2px;
+}
+
+.stock-modal-item-stock {
+  text-align: right;
+}
+
+.stock-modal-stock-qty {
+  font-size: 13px;
+  font-weight: 800;
+  color: #b91c1c;
+}
+
+.stock-modal-stock-min {
+  font-size: 11px;
+  color: #991b1b;
+}
+
+.stock-modal-footer {
+  padding: 14px 20px;
+  background-color: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stock-modal-notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.stock-modal-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.stock-modal-btn-secondary {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+}
+
+.stock-modal-btn-primary {
+  background: #116530;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}

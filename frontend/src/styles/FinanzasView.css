@@ -1,0 +1,216 @@
+/* Estilos para el Módulo de Finanzas y Control de Costos (HU-18 / HU-16 / HU-17) */
+
+.finanzas-container {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.finanzas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.finanzas-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 4px;
+  letter-spacing: -0.5px;
+}
+
+.finanzas-subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+}
+
+.finanzas-banner-lock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #fef3c7;
+  border: 1px solid #fde68a;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #92400e;
+}
+
+.finanzas-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 2px;
+}
+
+.finanzas-tab-btn {
+  padding: 10px 18px;
+  border: none;
+  background-color: transparent;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 3px solid transparent;
+  color: #64748b;
+  transition: all 0.2s ease;
+}
+
+.finanzas-tab-btn.active {
+  border-bottom-color: #1b5e20;
+  color: #1b5e20;
+}
+
+.finanzas-cards-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.finanzas-metric-card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 18px 20px;
+  border: 1px solid #e2e8f0;
+}
+
+.finanzas-metric-card-highlight {
+  background-color: #f0fdf4;
+  border-radius: 12px;
+  padding: 18px 20px;
+  border: 1px solid #bbf7d0;
+}
+
+.finanzas-metric-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.finanzas-metric-label-green {
+  font-size: 12px;
+  font-weight: 700;
+  color: #15803d;
+  margin-bottom: 6px;
+}
+
+.finanzas-metric-val-main {
+  font-size: 24px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.finanzas-metric-val-total {
+  font-size: 26px;
+  font-weight: 900;
+  color: #1b5e20;
+}
+
+.finanzas-metric-subtext {
+  font-size: 11.5px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.finanzas-metric-subtext-green {
+  font-size: 11.5px;
+  color: #15803d;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.finanzas-table-card {
+  background-color: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+
+.finanzas-table-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.finanzas-table-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.finanzas-table-meta {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.finanzas-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+
+.finanzas-thead-tr {
+  background-color: #f8fafc;
+  color: #64748b;
+  font-size: 11.5px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.finanzas-th {
+  padding: 12px 18px;
+  font-weight: 700;
+}
+
+.finanzas-th-right {
+  padding: 12px 18px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.finanzas-th-center {
+  padding: 12px 18px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.finanzas-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+
+.finanzas-modal-box {
+  background-color: #ffffff;
+  border-radius: 16px;
+  max-width: 500px;
+  width: 100%;
+  padding: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.finanzas-input-field {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  box-sizing: border-box;
+  font-size: 13px;
+}

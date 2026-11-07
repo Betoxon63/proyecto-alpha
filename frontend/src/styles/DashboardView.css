@@ -1,0 +1,275 @@
+/* Estilos para el Panel de Control Logístico / Dashboard */
+
+.dashboard-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.dashboard-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 4px;
+  letter-spacing: -0.5px;
+}
+
+.dashboard-subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+}
+
+.dashboard-badge-date {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  fontWeight: 600;
+  color: #334155;
+}
+
+.dashboard-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.dashboard-kpi-card {
+  background-color: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  padding: 18px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.dashboard-kpi-card-warning {
+  background-color: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #fed7aa;
+  padding: 18px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.dashboard-kpi-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.dashboard-kpi-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.dashboard-kpi-label-warning {
+  font-size: 12px;
+  font-weight: 700;
+  color: #9a3412;
+}
+
+.dashboard-kpi-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dashboard-kpi-icon-green {
+  background-color: #f0fdf4;
+}
+
+.dashboard-kpi-icon-orange {
+  background-color: #fff7ed;
+}
+
+.dashboard-kpi-icon-blue {
+  background-color: #eff6ff;
+}
+
+.dashboard-kpi-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.dashboard-kpi-value-warning {
+  font-size: 28px;
+  font-weight: 800;
+  color: #c2410c;
+}
+
+.dashboard-kpi-value-unit {
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.dashboard-kpi-subtext-green {
+  font-size: 12px;
+  color: #16a34a;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.dashboard-kpi-subtext-muted {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.dashboard-kpi-subtext-warning {
+  font-size: 12px;
+  color: #c2410c;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.dashboard-kpi-subtext-blue {
+  font-size: 12px;
+  color: #2563eb;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.dashboard-sections-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 20px;
+}
+
+.dashboard-card-section {
+  background-color: #ffffff;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.dashboard-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.dashboard-section-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-link-btn {
+  background: none;
+  border: none;
+  color: #1b5e20;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dashboard-flow-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dashboard-flow-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background-color: #f8fafc;
+  border: 1px solid #f1f5f9;
+}
+
+.dashboard-flow-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dashboard-flow-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dashboard-flow-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.dashboard-flow-sub {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.dashboard-flow-right {
+  text-align: right;
+}
+
+.dashboard-flow-qty {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.dashboard-flow-time {
+  font-size: 10.5px;
+  color: #94a3b8;
+}
+
+.dashboard-obra-card {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+}
+
+.dashboard-obra-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.dashboard-obra-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.dashboard-obra-detail {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.dashboard-badge-ongoing {
+  font-size: 10.5px;
+  font-weight: 700;
+  background-color: #dcfce7;
+  color: #15803d;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
