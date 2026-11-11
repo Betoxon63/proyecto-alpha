@@ -1,0 +1,25 @@
+# Entornos virtuales
+venv/
+.venv/
+env/
+
+# Credenciales y variables de entorno (OWASP A05)
+.env
+*.env
+.env.*
+
+# Python / Django
+__pycache__/
+*.py[cod]
+db.sqlite3
+staticfiles/
+
+# Node / React
+node_modules/
+dist/
+build/
+
+# IDE
+.DS_Store
+.vscode/
+.idea/
