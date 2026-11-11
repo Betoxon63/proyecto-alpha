@@ -1,25 +1,28 @@
-# Entornos virtuales
+# Entornos virtuales de Python.
 venv/
 .venv/
 env/
 
-# Credenciales y variables de entorno (OWASP A05)
+# Variables de entorno y credenciales.
 .env
 *.env
 .env.*
 
-# Python / Django
+# Archivos compilados y caché de Python/Django.
 __pycache__/
 *.py[cod]
 db.sqlite3
 staticfiles/
 
-# Node / React
+# Dependencias y compilación de React/Node.
 node_modules/
 dist/
 build/
 
-# IDE
+# Archivos de sistema e IDE.
 .DS_Store
 .vscode/
 .idea/
+
+# Bitácoras locales de auditoría.
+*.log
