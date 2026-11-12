@@ -53,6 +53,12 @@ const NavbarRBAC = ({ usuario, onLogout }) => {
                         Gestión de Usuarios
                     </NavLink>
                 )}
+
+                {rol === 'administracion' && (
+                    <NavLink to='/obras' className='nav-item'>
+                        Obras
+                    </NavLink>
+                )}
             </nav>
 
             <div className='navbar-user'>

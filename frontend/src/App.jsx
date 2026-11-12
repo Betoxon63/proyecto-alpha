@@ -5,6 +5,7 @@ import LoginView from './pages/LoginView';
 import CatalogoView from './pages/CatalogoView';
 import ComprasView from './pages/ComprasView';
 import UsuariosView from './pages/UsuariosView';
+import { ObrasPage } from './pages/Obras';
 import {
   obtenerUsuarioActual,
   iniciarMonitorInactividad,
@@ -74,6 +75,15 @@ function App() {
           element={
             <RutaProtegida usuario={usuario} rolesPermitidos={['administracion', 'encargado_finanza', 'encargado_bodega']}>
               <ComprasView usuario={usuario} />
+            </RutaProtegida>
+          }
+        />
+
+        <Route
+          path='/obras'
+          element={
+            <RutaProtegida usuario={usuario} rolesPermitidos={['administracion']}>
+              <ObrasPage />
             </RutaProtegida>
           }
         />
