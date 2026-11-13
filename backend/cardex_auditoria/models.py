@@ -1,8 +1,4 @@
 from django.db import models
-<<<<<<< HEAD
-
-# Create your models here.
-=======
 from django.core.exceptions import PermissionDenied
 from catalogo_inventario.models import Articulo
 from usuarios_rbac.models import Usuario
@@ -40,4 +36,3 @@ class MovimientoArticulo(models.Model):
     def delete(self, *args, **kwargs):
         raise PermissionDenied("No se puede eliminar un registro de movimiento de artículo.")
 
->>>>>>> c655e6916b0cda5c9573a4e770885e7deb67bb33

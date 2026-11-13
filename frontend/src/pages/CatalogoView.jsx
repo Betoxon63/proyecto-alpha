@@ -18,7 +18,7 @@ const CatalogoView = ({ usuario }) => {
     const [articulos, setArticulos] = useState([]);
     const [categorias, setCategorias] = useState([]);
     const [unidades, setUnidades] = useState([]);
-    const [busqueda, setBusqueda] = useState([]);
+    const [busqueda, setBusqueda] = useState('');
     const [formArticulo, setFormArticulo] = useState(estadoInicialArticulo);
     const [editandoId, setEditandoId] = useState(null);
     const [nuevaCategoria, setNuevaCategoria] = useState('');
@@ -32,16 +32,27 @@ const CatalogoView = ({ usuario }) => {
 
     const cargarDatos = async (filtro = '') => {
         try {
-            const [resArt, resCat, resUni] = await Promise.all([
-                obtenerArticulos(filtro),
-                obtenerCategorias(),
-                obtenerUnidades(),
-            ]);
-            setArticulos(resArt.data);
-            setCategorias(resCat.data);
-            setUnidades(resUni.data);
-        } catch {
-            setError('No se pudo cargar el catálogo de artículos.');
+            const resArt = await obtenerArticulos(filtro);
+            if (resArt && resArt.data) {
+                setArticulos(resArt.data);
+                setError('');
+            }
+        } catch (err) {
+            console.error("Error al cargar artículos:", err);
+        }
+
+        try {
+            const resCat = await obtenerCategorias();
+            if (resCat && resCat.data) setCategorias(resCat.data);
+        } catch (err) {
+            console.error("Aviso categorías:", err);
+        }
+
+        try {
+            const resUni = await obtenerUnidades();
+            if (resUni && resUni.data) setUnidades(resUni.data);
+        } catch (err) {
+            console.error("Aviso unidades:", err);
         }
     };
 
@@ -95,7 +106,7 @@ const CatalogoView = ({ usuario }) => {
             await eliminarArticulo(id);
             cargarDatos(busqueda);
         } catch {
-            setError('Nose puede eliminar un artículo con movimientos asociados.')
+            setError('No se puede eliminar un artículo con movimientos asociados.')
         }
     };
 
@@ -105,7 +116,9 @@ const CatalogoView = ({ usuario }) => {
         try {
             await crearCategoria({ nombre: nuevaCategoria });
             setNuevaCategoria('');
-            cargarDatos(busqueda);
+            const resCat = await obtenerCategorias();
+            if (resCat && resCat.data) setCategorias(resCat.data);
+            setMensaje('Categoría creada exitosamente.');
         } catch {
             setError('Error al crear la categoría.');
         }
@@ -117,7 +130,9 @@ const CatalogoView = ({ usuario }) => {
         try {
             await crearUnidad({ nombre: nuevaUnidad });
             setNuevaUnidad('');
-            cargarDatos(busqueda);
+            const resUni = await obtenerUnidades();
+            if (resUni && resUni.data) setUnidades(resUni.data);
+            setMensaje('Unidad de medida creada exitosamente.');
         } catch {
             setError('Error al crear la unidad de medida.');
         }
@@ -134,7 +149,7 @@ const CatalogoView = ({ usuario }) => {
                         value={busqueda}
                         onChange={(e) => setBusqueda(e.target.value)}
                     />
-                    <button type="submit" className="btn-primario"Buscar></button>
+                    <button type="submit" className="btn-primario">Buscar</button>
                 </form>
             </div>
 

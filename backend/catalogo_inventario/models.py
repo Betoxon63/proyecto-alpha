@@ -1,8 +1,5 @@
 from django.db import models
 
-<<<<<<< HEAD
-# Create your models here.
-=======
 
 class Categoria(models.Model):
     id_categoria = models.AutoField(primary_key=True)
@@ -41,4 +38,3 @@ class Articulo(models.Model):
 
     def __str__(self):
         return f"{self.nombre} ({self.codigo_barra})"
->>>>>>> c655e6916b0cda5c9573a4e770885e7deb67bb33

@@ -1,8 +1,3 @@
-<<<<<<< HEAD
-from django.shortcuts import render
-
-# Create your views here.
-=======
 from django.db.models import Q
 from rest_framework import viewsets
 from .models import Categoria, UnidadMedida, Articulo
@@ -25,11 +20,17 @@ class ArticuloViewSet(viewsets.ModelViewSet):
     permission_classes = [PermisoArticulos]
 
     def get_queryset(self):
-        self.queryset = Articulo.objects.select_related('id_categoria', 'id_unidad_medida').all().order_by('nombre')
+        # 1. Definir la consulta base siempre
+        queryset = Articulo.objects.select_related('id_categoria', 'id_unidad_medida').all().order_by('nombre')
+        
+        # 2. Capturar el parámetro de búsqueda
         busqueda = self.request.query_params.get('search')
+        
+        # 3. Aplicar el filtro si existe búsqueda
         if busqueda:
             queryset = queryset.filter(
                 Q(nombre__icontains=busqueda) | Q(codigo_barra__icontains=busqueda)
             )
+            
+        # 4. Retornar siempre la variable definida
         return queryset
->>>>>>> c655e6916b0cda5c9573a4e770885e7deb67bb33

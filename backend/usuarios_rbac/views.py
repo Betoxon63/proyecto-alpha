@@ -1,8 +1,3 @@
-<<<<<<< HEAD
-from django.shortcuts import render
-
-# Create your views here.
-=======
 import logging
 from django.core.cache import cache
 from rest_framework import viewsets, status
@@ -71,4 +66,3 @@ class RolViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Rol.objects.all().order_by('id_rol')
     serializer_class = RolSerializer
     permission_classes = [EsAdministrador]
->>>>>>> c655e6916b0cda5c9573a4e770885e7deb67bb33

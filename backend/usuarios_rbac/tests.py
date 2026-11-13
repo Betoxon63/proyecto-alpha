@@ -1,8 +1,4 @@
 from django.test import TestCase
-<<<<<<< HEAD
-
-# Create your tests here.
-=======
 from django.core.exceptions import PermissionDenied
 from rest_framework.exceptions import ValidationError
 
@@ -74,4 +70,3 @@ class Tests(TestCase):
         with self.assertRaises(PermissionDenied):
             movimiento.delete()
 
->>>>>>> c655e6916b0cda5c9573a4e770885e7deb67bb33

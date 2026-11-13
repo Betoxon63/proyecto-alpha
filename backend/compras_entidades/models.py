@@ -1,8 +1,4 @@
 from django.db import models
-<<<<<<< HEAD
-
-# Create your models here.
-=======
 from catalogo_inventario.models import Articulo
 
 
@@ -59,4 +55,3 @@ class DetalleFactura(models.Model):
 
     class Meta:
         db_table = 'detalle_factura'
->>>>>>> c655e6916b0cda5c9573a4e770885e7deb67bb33

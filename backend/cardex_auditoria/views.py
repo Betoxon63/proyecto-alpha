@@ -1,8 +1,3 @@
-<<<<<<< HEAD
-from django.shortcuts import render
-
-# Create your views here.
-=======
 from rest_framework import viewsets
 from rest_framework import serializers
 from .models import MovimientoArticulo
@@ -19,4 +14,3 @@ class CardexViewSet(viewsets.ModelViewSet):
     serializer_class = MovimientoArticuloSerializer
     permission_classes = [PermisoArticulos]
     http_method_names = ['get', 'post', 'head', 'options']
->>>>>>> c655e6916b0cda5c9573a4e770885e7deb67bb33

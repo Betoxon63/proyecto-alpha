@@ -3,7 +3,7 @@ import api from './axiosConfig';
 export const obtenerArticulos = (busqueda = '') =>
     api.get(`/articulos/${busqueda ? `?search=${encodeURIComponent(busqueda)}` : ''}`);
 export const crearArticulo = (datos) => api.post('/articulos/', datos);
-export const actualizarArticulo = (id, datos) => api.put(`/articulos/${id}`, datos);
+export const actualizarArticulo = (id, datos) => api.put(`/articulos/${id}/`, datos);
 export const eliminarArticulo = (id) => api.delete(`/articulos/${id}/`);
 
 export const obtenerCategorias = () => api.get('/categorias/');
