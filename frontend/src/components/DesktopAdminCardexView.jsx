@@ -1,3 +1,20 @@
+/**
+ * @file DesktopAdminCardexView.jsx
+ * @description Portal de escritorio integral para la administración logística de FYAG SpA (Captura 5.3.2).
+ * Consolida en una interfaz centralizada el Cardex Append-Only, Dashboard ejecutivo, Despachos a Obras,
+ * Recepción de Facturas con descuentos y Gestión de Usuarios con control de acceso por roles.
+ * 
+ * BIBLIOTECAS UTILIZADAS:
+ * - react: Componente modular con navegación por pestañas (`activeTab`).
+ * - lucide-react: Iconografía empresarial de alta fidelidad.
+ * 
+ * REGLAS DE NEGOCIO IMPLEMENTADAS:
+ * - HU-11: Auditoría y exportación CSV de movimientos de inventario.
+ * - HU-05 / HU-10: Despacho a obras con verificación de firma digital.
+ * - HU-08 / CP-04: Recepción de facturas de compra y costeo de insumos.
+ * - Filtros combinados de auditoría por tipo de movimiento, búsqueda predictiva y selección de período.
+ */
+
 import React, { useState } from 'react';
 import {
   LayoutDashboard,

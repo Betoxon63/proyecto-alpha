@@ -1,3 +1,13 @@
+/**
+ * @file GestionUsuariosView.jsx
+ * @description Módulo de administración de usuarios y asignación de roles (RBAC).
+ * Permite listar operadores del sistema, auditar último inicio de sesión y registrar nuevas cuentas.
+ * 
+ * BIBLIOTECAS UTILIZADAS:
+ * - react: Hooks de estado para filtrado de operadores y control de modales.
+ * - lucide-react: Iconos vectoriales de control de acceso y seguridad (`Users`, `Shield`, `KeyRound`, etc.).
+ */
+
 import React, { useState } from 'react';
 import { 
   Users, 

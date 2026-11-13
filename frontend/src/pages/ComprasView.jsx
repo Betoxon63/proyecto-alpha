@@ -22,6 +22,7 @@ import {
     actualizarProveedor,
     eliminarProveedor,
     obtenerArticulos,
+    crearFactura,
 } from '../services_api/inventarioService';
 import { crearMovimientoCardex } from '../services_api/cardexService';
 import FacturasComprasView from '../components/FacturasComprasView';
@@ -334,21 +335,49 @@ const ComprasView = ({ usuario }) => {
                     proveedores={proveedores}
                     articulos={articulos}
                     onRegistrarFactura={async (facturaData) => {
-                        await crearMovimientoCardex({
-                            usuario_responsable: usuario?.nombre || 'Encargado Compras',
-                            cargo: 'Adquisiciones',
-                            articulo_nombre: facturaData.articulo_nombre,
-                            articulo_codigo: `ART-${facturaData.articulo_id}`,
-                            articulo_detalle: 'Recepción Factura Proveedor',
-                            cantidad: facturaData.cantidad,
-                            unidad_medida: 'un',
-                            tipo_movimiento: 'Entrada',
-                            obra_destino: 'Bodega Central',
-                            documento_respaldo: facturaData.documento,
-                            motivo: facturaData.motivo
-                        });
-                        setMensaje(`Factura ${facturaData.documento} registrada con éxito. Se ingresaron ${facturaData.cantidad} unidades.`);
-                        cargarEntidades();
+                        setError('');
+                        setMensaje('');
+                        const numDoc = parseInt(String(facturaData.documento || '').replace(/\D/g, ''), 10) || 1;
+                        try {
+                            await crearFactura({
+                                numero_documento: numDoc,
+                                id_proveedor: facturaData.proveedor_id,
+                                observaciones: facturaData.observaciones || facturaData.motivo,
+                                descuento_1: facturaData.descuento_1 || 0,
+                                descuento_2: facturaData.descuento_2 || 0,
+                                descuento_3: facturaData.descuento_3 || 0,
+                                detalles: [
+                                    {
+                                        id_articulo: facturaData.articulo_id,
+                                        cantidad: facturaData.cantidad,
+                                        precio_unitario: facturaData.precio_unitario,
+                                    }
+                                ],
+                            });
+                            setMensaje(`Factura ${facturaData.documento} registrada con éxito en el servidor. Se ingresaron ${facturaData.cantidad} unidades.`);
+                            cargarEntidades();
+                        } catch (err) {
+                            if (err.response) {
+                                setError(err.response.data?.detail || JSON.stringify(err.response.data));
+                                throw err;
+                            }
+                            await crearMovimientoCardex({
+                                id_articulo: facturaData.articulo_id,
+                                usuario_responsable: usuario?.nombre || 'Encargado Compras',
+                                cargo: 'Adquisiciones',
+                                articulo_nombre: facturaData.articulo_nombre,
+                                articulo_codigo: `ART-${facturaData.articulo_id}`,
+                                articulo_detalle: 'Recepción Factura Proveedor',
+                                cantidad: facturaData.cantidad,
+                                unidad_medida: 'un',
+                                tipo_movimiento: 'Entrada',
+                                obra_destino: 'Bodega Central',
+                                documento_respaldo: facturaData.documento,
+                                motivo: facturaData.motivo
+                            });
+                            setMensaje(`Factura ${facturaData.documento} registrada localmente. Se ingresaron ${facturaData.cantidad} unidades.`);
+                            cargarEntidades();
+                        }
                     }}
                 />
             )}

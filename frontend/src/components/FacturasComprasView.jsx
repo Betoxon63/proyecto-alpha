@@ -12,7 +12,7 @@
  * - Entrada automática a bodega central con generación de correlativo de movimiento Cardex.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Building2, 
   Receipt, 
@@ -41,6 +41,18 @@ export default function FacturasComprasView({ proveedores = [], articulos = [], 
   const [observaciones, setObservaciones] = useState('Compra de reposición stock programada');
   const [successMsg, setSuccessMsg] = useState(false);
 
+  useEffect(() => {
+    if (!proveedorId && proveedores.length > 0) {
+      setProveedorId(proveedores[0].id_proveedor || proveedores[0].id || '');
+    }
+  }, [proveedores, proveedorId]);
+
+  useEffect(() => {
+    if (!articuloId && articulos.length > 0) {
+      setArticuloId(articulos[0].id_articulo || articulos[0].id || '');
+    }
+  }, [articulos, articuloId]);
+
   // Cálculo matemático exacto de descuentos sucesivos (Caso de Prueba CP-04)
   const bruto = cantidad * precioUnitario;
   const paso1 = bruto * (1 - d1 / 100);
@@ -49,26 +61,35 @@ export default function FacturasComprasView({ proveedores = [], articulos = [], 
   const iva = Math.round(neto * 0.19);
   const total = neto + iva;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const artObj = articulos.find(a => (a.id_articulo || a.id || '').toString() === articuloId.toString());
     const provObj = proveedores.find(p => (p.id_proveedor || p.id || '').toString() === proveedorId.toString());
 
-    onRegistrarFactura({
-      id_factura: `FAC-${Math.floor(10000 + Math.random() * 90000)}`,
-      proveedor: provObj?.razon_social || 'Proveedor Registrado',
-      articulo_id: artObj?.id_articulo,
-      articulo_nombre: artObj?.nombre,
-      cantidad: Number(cantidad),
-      precio_unitario: Number(precioUnitario),
-      neto,
-      total,
-      documento: numeroFactura,
-      motivo: `Factura ${numeroFactura} - ${provObj?.razon_social}`
-    });
+    try {
+      await onRegistrarFactura({
+        id_factura: `FAC-${Math.floor(10000 + Math.random() * 90000)}`,
+        proveedor_id: provObj?.id_proveedor || provObj?.id,
+        proveedor: provObj?.razon_social || 'Proveedor Registrado',
+        articulo_id: artObj?.id_articulo || artObj?.id,
+        articulo_nombre: artObj?.nombre,
+        cantidad: Number(cantidad),
+        precio_unitario: Number(precioUnitario),
+        descuento_1: Number(d1),
+        descuento_2: Number(d2),
+        descuento_3: Number(d3),
+        observaciones,
+        neto,
+        total,
+        documento: numeroFactura,
+        motivo: `Factura ${numeroFactura} - ${provObj?.razon_social || 'Proveedor'}`
+      });
 
-    setSuccessMsg(true);
-    setTimeout(() => setSuccessMsg(false), 4000);
+      setSuccessMsg(true);
+      setTimeout(() => setSuccessMsg(false), 4000);
+    } catch {
+      // El componente padre maneja el mensaje de error
+    }
   };
 
   return (

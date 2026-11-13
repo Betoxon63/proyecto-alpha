@@ -52,7 +52,10 @@ export default function TablaCardex({ cardexInicial = null, obrasInicial = null 
   useEffect(() => {
     if (!cardexInicial) {
       setCargando(true);
-      Promise.all([obtenerCardex(), obtenerObras()])
+      Promise.all([
+        obtenerCardex().catch(() => []),
+        obtenerObras().catch(() => [])
+      ])
         .then(([dataCardex, dataObras]) => {
           setMovimientos(dataCardex);
           setObras(dataObras);
@@ -285,7 +288,7 @@ export default function TablaCardex({ cardexInicial = null, obrasInicial = null 
                 <option value="Todas">Todas las ubicaciones</option>
                 <option value="Bodega Central">Bodega Central</option>
                 {obras.map(o => (
-                  <option key={o.id} value={o.nombre}>{o.nombre}</option>
+                  <option key={o.id_obra || o.id} value={o.nombre}>{o.nombre}</option>
                 ))}
               </select>
             </div>

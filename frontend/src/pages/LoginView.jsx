@@ -1,3 +1,9 @@
+/**
+ * @file LoginView.jsx
+ * @description Vista de inicio de sesión y autenticación JWT con protección ante ataques de fuerza bruta (HTTP 429).
+ * Valida formato de correo, gestiona estados de carga y redirige según el perfil RBAC del usuario.
+ */
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { loginUsuario } from '../services_api/authService';

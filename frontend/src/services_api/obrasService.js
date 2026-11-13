@@ -1,14 +1,10 @@
 /**
  * @file obrasService.js
  * @description Servicio de capa de datos para la gestión de faenas, proyectos y obras de refrigeración (HU-05, HU-09).
- * Conecta con los endpoints de Django REST Framework con respaldo en almacenamiento local (`localStorage`).
+ * Conecta con los endpoints de Django REST Framework (`/api/obras/`) con respaldo local cuando no hay conexión.
  * 
  * BIBLIOTECAS UTILIZADAS:
  * - axios: Cliente HTTP configurado con interceptores JWT para autenticación Bearer (ver axiosConfig.js).
- * 
- * REGLAS DE NEGOCIO IMPLEMENTADAS:
- * - HU-05: Asignación e imputación directa de insumos consumidos por proyecto/obra.
- * - HU-09: Trazabilidad y visibilidad de existencias para supervisores de terreno.
  */
 
 import api from './axiosConfig';
@@ -18,7 +14,6 @@ const OBRAS_LOCAL_KEY = 'fyag_obras_alpha';
 
 /**
  * Obtiene la lista de obras y proyectos activos de refrigeración.
- * Consulta el endpoint `GET /api/obras/` con fallback al almacenamiento local.
  * 
  * @async
  * @returns {Promise<Array<Object>>} Lista de proyectos y faenas vigentes.
@@ -26,11 +21,16 @@ const OBRAS_LOCAL_KEY = 'fyag_obras_alpha';
 export const obtenerObras = async () => {
     try {
         const respuesta = await api.get('/obras/');
-        if (respuesta.data && Array.isArray(respuesta.data) && respuesta.data.length > 0) {
-            return respuesta.data;
+        if (respuesta.data && Array.isArray(respuesta.data)) {
+            if (respuesta.data.length > 0) {
+                return respuesta.data;
+            }
+            return [];
         }
-    } catch {
-        // Fallback a localStorage o INITIAL_OBRAS
+    } catch (err) {
+        if (err.response) {
+            throw err;
+        }
     }
 
     const guardadas = localStorage.getItem(OBRAS_LOCAL_KEY);
@@ -50,14 +50,17 @@ export const obtenerObras = async () => {
  * Registra una nueva obra o proyecto en el sistema.
  * 
  * @async
- * @param {Object} datosObra Datos de la faena (nombre, cliente, técnico, estado).
+ * @param {Object} datosObra Datos de la faena.
  * @returns {Promise<Object>} Objeto de la obra registrada.
  */
 export const crearObra = async (datosObra) => {
     try {
         const respuesta = await api.post('/obras/', datosObra);
         return respuesta.data;
-    } catch {
+    } catch (err) {
+        if (err.response) {
+            throw err;
+        }
         const guardadas = await obtenerObras();
         const nueva = {
             id: guardadas.length + 1,
@@ -68,4 +71,18 @@ export const crearObra = async (datosObra) => {
         localStorage.setItem(OBRAS_LOCAL_KEY, JSON.stringify(actualizadas));
         return nueva;
     }
+};
+
+/**
+ * Despacha insumos a una obra específica mediante `POST /api/obras/<id>/despachar/`.
+ * Descuenta stock de forma atómica en el backend e imputa al Cardex Append-Only.
+ * 
+ * @async
+ * @param {number|string} idObra Identificador de la obra destino.
+ * @param {Object} datosDespacho Datos del despacho (`id_articulo`, `cantidad`, `documento_respaldo`, `tecnico_receptor`, `motivo`).
+ * @returns {Promise<Object>} Respuesta del servidor con stock actualizado e ID de movimiento.
+ */
+export const despacharObra = async (idObra, datosDespacho) => {
+    const respuesta = await api.post(`/obras/${idObra}/despachar/`, datosDespacho);
+    return respuesta.data;
 };

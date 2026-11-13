@@ -15,7 +15,7 @@
 import React, { useState, useEffect } from 'react';
 import ObrasDespachosView from '../components/ObrasDespachosView';
 import FirmaTablet from '../components/FirmaTablet';
-import { obtenerObras } from '../services_api/obrasService';
+import { obtenerObras, despacharObra } from '../services_api/obrasService';
 import { obtenerArticulos } from '../services_api/inventarioService';
 import { obtenerCardex, crearMovimientoCardex } from '../services_api/cardexService';
 import { INITIAL_ARTICULOS, INITIAL_OBRAS, INITIAL_CARDEX } from '../mockData';
@@ -67,10 +67,23 @@ export default function DespachoObra({ usuario }) {
    * @param {number} cantidad Unidades despachadas.
    */
   const handleRegistrarDespacho = async (movimientoData, articuloId, cantidad) => {
-    await crearMovimientoCardex({
-      ...movimientoData,
-      usuario_responsable: usuario?.nombre || movimientoData.usuario_responsable
-    });
+    const obraReal = obras.find(o => o.id_obra && String(o.id_obra) === String(movimientoData.id_obra));
+    if (obraReal) {
+      await despacharObra(obraReal.id_obra, {
+        id_articulo: articuloId,
+        cantidad: Number(cantidad),
+        documento_respaldo: movimientoData.documento_respaldo,
+        tecnico_receptor: movimientoData.tecnico_receptor,
+        motivo: movimientoData.motivo,
+      });
+    } else {
+      await crearMovimientoCardex({
+        ...movimientoData,
+        id_obra: null,
+        motivo: `Despacho a ${movimientoData.obra_destino} recibido por ${movimientoData.tecnico_receptor}`,
+        usuario_responsable: usuario?.nombre || movimientoData.usuario_responsable
+      });
+    }
 
     // Actualizar localmente la cantidad en articulos
     setArticulos(prev => prev.map(art => {
@@ -83,9 +96,13 @@ export default function DespachoObra({ usuario }) {
       return art;
     }));
 
-    // Actualizar cardex
-    const dataActualizada = await obtenerCardex();
-    setCardex(dataActualizada);
+    // Actualizar cardex desde backend si tiene acceso
+    try {
+      const dataActualizada = await obtenerCardex();
+      setCardex(dataActualizada);
+    } catch {
+      // Supervisor no tiene permiso de lectura global de Cardex (403)
+    }
   };
 
   if (cargando) {

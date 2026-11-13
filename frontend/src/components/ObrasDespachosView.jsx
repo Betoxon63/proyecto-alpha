@@ -1,3 +1,17 @@
+/**
+ * @file ObrasDespachosView.jsx
+ * @description Componente de gestión de despacho de insumos hacia faenas y proyectos de refrigeración (HU-05, HU-09, HU-10).
+ * 
+ * Permite emitir guías de despacho, asociar técnicos receptores, verificar firmas conformes
+ * e imputar automáticamente los materiales a los costos del proyecto en Cardex y Bodega.
+ * 
+ * @param {Object} props
+ * @param {Array<Object>} props.obras Lista de obras y faenas activas disponibles.
+ * @param {Array<Object>} props.articulos Catálogo maestro de insumos con stock disponible.
+ * @param {Array<Object>} props.cardex Bitácora de movimientos para auditar despachos históricos.
+ * @param {Function} props.onRegistrarDespacho Callback para persistir el despacho vía API o fallback local.
+ */
+
 import React, { useState } from 'react';
 import { 
   Truck, 
@@ -13,48 +27,72 @@ import {
   AlertCircle
 } from 'lucide-react';
 
-export default function ObrasDespachosView({ obras, articulos, cardex, onRegistrarDespacho }) {
-  const [selectedObraId, setSelectedObraId] = useState(obras[0]?.id || 1);
-  const [articuloId, setArticuloId] = useState(articulos[0]?.id_articulo || 1);
+export default function ObrasDespachosView({ obras = [], articulos = [], cardex = [], onRegistrarDespacho }) {
+  const primerObraId = obras[0]?.id_obra || obras[0]?.id || '';
+  const primerArtId = articulos[0]?.id_articulo || articulos[0]?.id || '';
+  const [selectedObraId, setSelectedObraId] = useState(primerObraId);
+  const [articuloId, setArticuloId] = useState(primerArtId);
   const [cantidad, setCantidad] = useState(2);
   const [tecnicoReceptor, setTecnicoReceptor] = useState('Javier Soto (Técnico Frigorista)');
   const [guiaDespacho, setGuiaDespacho] = useState('GD-001540');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
   const [firmaDigital, setFirmaDigital] = useState(true);
 
-  const selectedObra = obras.find(o => o.id.toString() === selectedObraId.toString()) || obras[0];
-  const selectedArticulo = articulos.find(a => a.id_articulo.toString() === articuloId.toString()) || articulos[0];
+  const selectedObra = obras.find(o => String(o.id_obra || o.id) === String(selectedObraId)) || obras[0] || { nombre: 'Sin obras', cliente: '', ubicacion: '', codigo: 'N/A' };
+  const selectedArticulo = articulos.find(a => String(a.id_articulo || a.id) === String(articuloId)) || articulos[0] || { id_articulo: '', nombre: 'Sin artículos', stock_disponible: 0, unidad_medida: 'un' };
+
+  const unidadTexto = selectedArticulo.unidad_nombre || selectedArticulo.unidad_medida || 'un';
+  const obraCliente = selectedObra.cliente_nombre || selectedObra.cliente || '';
 
   // Despachos realizados a la obra seleccionada desde el historial
+  const nombreObraLower = (selectedObra.nombre || '').toLowerCase();
   const despachosObra = cardex.filter(m => 
-    m.tipo_movimiento === 'Salida' && m.obra_destino.toLowerCase().includes(selectedObra.nombre.toLowerCase())
+    m.tipo_movimiento === 'Salida' && (
+      (m.obra_destino || '').toLowerCase().includes(nombreObraLower) ||
+      (m.motivo || '').toLowerCase().includes(nombreObraLower)
+    )
   );
 
-  const handleCrearDespacho = (e) => {
+  const handleCrearDespacho = async (e) => {
     e.preventDefault();
-    if (cantidad > selectedArticulo.stock_disponible) {
-      alert(`Error 409: Stock insuficiente. Solo hay ${selectedArticulo.stock_disponible} unidades disponibles.`);
+    setErrorMsg('');
+    if (!selectedObra.id_obra && !selectedObra.id) {
+      setErrorMsg('Debe registrar o seleccionar una obra válida.');
+      return;
+    }
+    if (Number(cantidad) > Number(selectedArticulo.stock_disponible)) {
+      setErrorMsg(`Error 409: Stock insuficiente. Solo hay ${selectedArticulo.stock_disponible} unidades disponibles.`);
       return;
     }
 
-    onRegistrarDespacho({
-      id_movimiento: `MOV-${Math.floor(100000 + Math.random() * 900000)}`,
-      fecha_hora: new Date().toISOString().replace('T', ' ').substring(0, 16),
-      usuario_responsable: 'Carlos Muñoz',
-      cargo: 'Bodeguero',
-      articulo_nombre: selectedArticulo.nombre,
-      articulo_codigo: selectedArticulo.codigo_interno,
-      articulo_detalle: selectedArticulo.categoria,
-      cantidad: -Number(cantidad),
-      unidad_medida: selectedArticulo.unidad_medida.includes('Metros') ? 'm' : (selectedArticulo.unidad_medida.includes('Cilindro') ? 'cil' : 'un'),
-      tipo_movimiento: 'Salida',
-      obra_destino: selectedObra.nombre,
-      documento_respaldo: guiaDespacho,
-      motivo: `Despacho a terreno recibido por ${tecnicoReceptor}`
-    }, selectedArticulo.id_articulo, Number(cantidad));
+    try {
+      await onRegistrarDespacho({
+        id_obra: selectedObra.id_obra || selectedObra.id,
+        id_articulo: selectedArticulo.id_articulo,
+        id_movimiento: `MOV-${Math.floor(100000 + Math.random() * 900000)}`,
+        fecha_hora: new Date().toISOString().replace('T', ' ').substring(0, 16),
+        usuario_responsable: 'Carlos Muñoz',
+        cargo: 'Bodeguero',
+        articulo_nombre: selectedArticulo.nombre,
+        articulo_codigo: selectedArticulo.codigo_interno || String(selectedArticulo.codigo_barra || ''),
+        articulo_detalle: selectedArticulo.categoria_nombre || selectedArticulo.categoria || '',
+        cantidad: -Number(cantidad),
+        unidad_medida: unidadTexto.includes('Metros') ? 'm' : (unidadTexto.includes('Cilindro') ? 'cil' : unidadTexto),
+        tipo_movimiento: 'Salida',
+        obra_destino: selectedObra.nombre,
+        documento_respaldo: guiaDespacho,
+        tecnico_receptor: tecnicoReceptor,
+        motivo: `Despacho a terreno recibido por ${tecnicoReceptor}`
+      }, selectedArticulo.id_articulo, Number(cantidad));
 
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 4000);
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 4000);
+    } catch (err) {
+      const data = err.response?.data;
+      const detalle = data?.detail || (data ? JSON.stringify(data) : null);
+      setErrorMsg(detalle || 'No se pudo emitir el despacho. Verifique permisos o stock disponible.');
+    }
   };
 
   return (
@@ -71,6 +109,12 @@ export default function ObrasDespachosView({ obras, articulos, cardex, onRegistr
           </p>
         </div>
       </div>
+
+      {errorMsg && (
+        <div className="alerta-error" style={{ marginBottom: '4px' }}>
+          {errorMsg}
+        </div>
+      )}
 
       {showSuccess && (
         <div style={{
@@ -123,9 +167,13 @@ export default function ObrasDespachosView({ obras, articulos, cardex, onRegistr
                   color: '#1e293b'
                 }}
               >
-                {obras.map(o => (
-                  <option key={o.id} value={o.id}>{o.nombre} - {o.cliente}</option>
-                ))}
+                {obras.map(o => {
+                  const oid = o.id_obra || o.id;
+                  const cli = o.cliente_nombre || o.cliente || '';
+                  return (
+                    <option key={oid} value={oid}>{o.nombre} - {cli}</option>
+                  );
+                })}
               </select>
             </div>
 
@@ -188,11 +236,14 @@ export default function ObrasDespachosView({ obras, articulos, cardex, onRegistr
                   color: '#1e293b'
                 }}
               >
-                {articulos.map(a => (
-                  <option key={a.id_articulo} value={a.id_articulo}>
-                    {a.nombre} (Disp: {a.stock_disponible} {a.unidad_medida.includes('Metros') ? 'm' : 'un'})
-                  </option>
-                ))}
+                {articulos.map(a => {
+                  const u = a.unidad_nombre || a.unidad_medida || 'un';
+                  return (
+                    <option key={a.id_articulo} value={a.id_articulo}>
+                      {a.nombre} (Disp: {a.stock_disponible} {u.includes('Metros') ? 'm' : u})
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -286,7 +337,7 @@ export default function ObrasDespachosView({ obras, articulos, cardex, onRegistr
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
             <div>
               <div style={{ fontSize: '17px', fontWeight: '800', color: '#0f172a' }}>{selectedObra.nombre}</div>
-              <div style={{ fontSize: '12px', color: '#64748b' }}>{selectedObra.cliente} · {selectedObra.ubicacion}</div>
+              <div style={{ fontSize: '12px', color: '#64748b' }}>{obraCliente} · {selectedObra.ubicacion}</div>
             </div>
             <span style={{
               fontSize: '11px',

@@ -1,3 +1,10 @@
+/**
+ * @file CatalogoView.jsx
+ * @description Vista del Catálogo e Inventario de Insumos y Repuestos (HU-01, HU-02, HU-03).
+ * Proporciona búsqueda reactiva por texto y código de barras, creación/edición de artículos,
+ * gestión de categorías y unidades de medida, y alertas visuales de stock mínimo preventivo.
+ */
+
 import React, { useEffect, useState } from "react";
 import { obtenerArticulos, crearArticulo, actualizarArticulo, eliminarArticulo, obtenerCategorias, crearCategoria, obtenerUnidades, crearUnidad, } from '../services_api/inventarioService';
 import AlertaStock from "../components/AlertaStock";
@@ -134,7 +141,7 @@ const CatalogoView = ({ usuario }) => {
                         value={busqueda}
                         onChange={(e) => setBusqueda(e.target.value)}
                     />
-                    <button type="submit" className="btn-primario"Buscar></button>
+                    <button type="submit" className="btn-primario">Buscar</button>
                 </form>
             </div>
 

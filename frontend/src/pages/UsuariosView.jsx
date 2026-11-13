@@ -1,3 +1,9 @@
+/**
+ * @file UsuariosView.jsx
+ * @description Vista de administración de usuarios y asignación de roles (RBAC) exclusiva para Administrador.
+ * Permite la creación y deshabilitación de cuentas de operadores con hash de contraseña seguro.
+ */
+
 import React, { useEffect, useState } from "react";
 import {
     obtenerUsuarios,
