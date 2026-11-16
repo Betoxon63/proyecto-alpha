@@ -3,15 +3,17 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import Usuario, Rol
 from .validators import validar_rut, validar_texto
 
-
+# Prepara la lista de cargos de la empresa para mostrarla en la pantalla.
 class RolSerializer(serializers.ModelSerializer):
     class Meta:
         model = Rol
         fields = ['id_rol', 'nombre']
 
+# Revisa y guarda los datos al registrar o editar un trabajador.
 class UsuarioSerializer(serializers.ModelSerializer):
     rol_nombre = serializers.CharField(source='id_rol.nombre', read_only=True)
-    password = serializers.CharField(write_only=True, required=True, min_length=8)
+    # La contraseña solo es obligatoria al crear un trabajador nuevo.
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True, min_length=8)
 
     class Meta:
         model = Usuario
@@ -20,17 +22,26 @@ class UsuarioSerializer(serializers.ModelSerializer):
             'password', 'telefono', 'id_rol', 'rol_nombre', 'is_active'
         ]
 
+    # Comprueba que el RUT sea válido y no pertenezca a otro trabajador.
     def validate_rut(self, value):
         rut_normalizado = validar_rut(value)
         qs = Usuario.objects.filter(rut=rut_normalizado)
         if self.instance:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
-            raise serializers.ValidationError("Ya existe un usuario con este RUT.")
+            raise serializers.ValidationError("Ya hay un trabajador registrado con este RUT.")
         return rut_normalizado
 
     def validate_nombre(self, value):
         return validar_texto(value)
+
+    # Pide contraseña obligatoria solo cuando se está registrando un trabajador nuevo.
+    def validate(self, attrs):
+        if self.instance is None and not attrs.get('password'):
+            raise serializers.ValidationError({
+                "password": "Debe escribir una contraseña de al menos 8 caracteres para el nuevo trabajador."
+                })
+        return attrs
 
     def create(self, validated_data):
         password = validated_data.pop('password')
@@ -43,12 +54,14 @@ class UsuarioSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password', None)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        if password:
+        # Solo cambia la contraseña si se escribió una nueva al editar.
+        if password and password.strip():
             instance.set_password(password)
         instance.save()
         return instance
 
-class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+# Entrega los datos del trabajador y su cargo cuando inicia sesión.
+class LoginSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
@@ -66,3 +79,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'rol': self.user.id_rol.nombre,
         }
         return data
+
+# Alias por compatibilidad.
+CustomTokenObtainPairSerializer = LoginSerializer
