@@ -84,6 +84,9 @@ const NavbarRBAC = ({ usuario, onLogout, onOpenStockAlerts, stockCriticoCount = 
                 {['administracion', 'soporte_ti'].includes(rol) && (
                     <NavLink to="/admin/usuarios" className="nav-item">Personal y Cuentas</NavLink>
                 )}
+                {['encargado_bodega'].includes(rol) && (
+                    <NavLink to='/bodega/dashboard' className='nav-item'>Dashboard</NavLink>
+                )}
             </nav>
 
             <div className="navbar-user">

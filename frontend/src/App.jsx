@@ -18,6 +18,7 @@ import DesktopAdminCardexView from './pages/DesktopAdminCardexView';
 import { obtenerUsuarioActual, iniciarMonitorInactividad, } from './services_api/authService';
 import { obtenerArticulos } from './services_api/inventarioService';
 import { ObrasPage } from './pages/Obras';
+import { BodegaDashboard } from './pages/BodegaDashboard';
 
 // Verifica la sesión y los permisos del trabajador.
 const RutaProtegidaRBAC = ({ usuario, rolesPermitidos, children }) => {
@@ -250,6 +251,15 @@ function AppContent() {
           path="*"
           element={
             <Navigate to={usuario ? obtenerRutaInicial(usuario.rol) : '/login'} replace />
+          }
+        />
+
+        <Route
+          path='/bodega/dashboard'
+          element={
+            <RutaProtegidaRBAC usuario={usuario} rolesPermitidos={['encargado_bodega']}>
+              <BodegaDashboard />
+            </RutaProtegidaRBAC>
           }
         />
       </Routes>
