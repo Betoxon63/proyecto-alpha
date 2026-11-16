@@ -54,14 +54,13 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
-        const originalRequest = error.congif;
+        const originalRequest = error.config;
 
-        if (
-            error.response &&
-            error.response.status === 401 &&
-            !originalRequest._retry &&
-            !originalRequest.url.includes('/token/')
-        ) {
+        if (!originalRequest || (originalRequest.url && originalRequest.url.includes('/token/'))) {
+            return Promise.reject(error);
+        }
+
+        if (error.response && error.response.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
             const refreshToken = getRefreshTokenCookie();
 
@@ -78,7 +77,7 @@ api.interceptors.response.use(
                         .then((res) => {
                             const nuevoAccess = res.data.access;
                             setAccessToken(nuevoAccess);
-                            if (res.data.request) {
+                            if (res.data.refresh) {
                                 setRefreshTokenCookie(res.data.refresh);
                             }
                             return nuevoAccess;
