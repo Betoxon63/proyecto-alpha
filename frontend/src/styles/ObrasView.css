@@ -1,0 +1,326 @@
+.obras-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.obras-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.obras-title {
+    font-size: 24px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 4px;
+    letter-spacing: -0.5px;
+}
+
+.obras-subtitle {
+    font-size: 13px;
+    color: #64748b;
+    margin: 0;
+}
+
+.obras-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+}
+
+.obras-kpi-card {
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 14px 18px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.obras-kpi-label {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+}
+
+.obras-kpi-value {
+    font-size: 24px;
+    font-weight: 800;
+    color: #0f172a;
+    margin-top: 4px;
+}
+
+.obras-form-card {
+    background-color: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    padding: 20px 22px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.obras-form-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.obras-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 14px;
+}
+
+.obras-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.obras-label {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #334155;
+}
+
+.obras-input,
+.obras-select {
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1.5px solid #cbd5e1;
+    font-size: 13px;
+    color: #1e293b;
+    background-color: #ffffff;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.obras-input:focus,
+.obras-select:focus {
+    border-color: #1b5e20;
+}
+
+.obras-form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+}
+
+obras-btn-save {
+    background-color: #1b5e20;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 13.5px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: cetner;
+    gap: 8px;
+}
+
+.obras-btn-save:hover {
+    background-color: #144918;
+}
+
+.obras-btn-cancel {
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.obras-table-card {
+    background-color: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.obras-toolbar {
+    padding: 14px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.obras-search-box {
+    display: flex;
+    align-items: center;
+    background-color: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 6px 12px;
+    width: 320px;
+    gap: 8px;
+}
+
+.obras-search-input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 12.5px;
+    width: 100%;
+    color: #1e293b;
+    padding: 0;
+}
+
+.obras-filter-group {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.obras-filter-btn {
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: none;
+    font-size: 12px;
+    font-weight: 700;
+    background-color: #f1f5f9;
+    color: #475569;
+    cursor: pointer;
+}
+
+.obras-filter-btn.active {
+    background-color: #1b5e20;
+    color: #ffffff;
+}
+
+.obras-table-wrapper {
+    overflow-x: auto;
+}
+
+.obras-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 13px;
+}
+
+.obras-table thead tr {
+    background-color: #f8fafc;
+    color: #64748b;
+    font-size: 11.5px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.obras-table th,
+.obras-table td {
+    padding: 13px 16px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.obras-code-badge {
+    font-family: monospace;
+    font-weight: 700;
+    color: #0f172a;
+    background-color: #f1f5f9;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+}
+
+.obras-client-name {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.obras-client-rut {
+    font-size: 11px;
+    color: #67748b;
+    font-family: monospace;
+}
+
+.obras-service-tag {
+    background-color: #eff6ff;
+    color: #1d4ed8;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    font-weight: 700;
+}
+
+.obras-status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 700;
+}
+
+.obras-status-badge.proceso {
+    background-color: #dcfce7;
+    color: #15803d;
+}
+
+.obras-status-badge.finalizada {
+    background-color: #e0f2fe;
+    color: #0369a1;
+}
+
+.obras-status-badge.suspendida {
+    background-color: #fef3c7;
+    color: #b45309;
+}
+
+.obras-status-badge.cancelada {
+    background-color: #fee2e2;
+    color: #b91c1c;
+}
+
+.obras-actions-cell {
+    display: flex;
+    gap: 8px;
+}
+
+.obras-btn-edit {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background-color: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.obras-btn-delete {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.obras-empty {
+    padding: 32px;
+    text-align: center;
+    color: #94a3b8;
+}

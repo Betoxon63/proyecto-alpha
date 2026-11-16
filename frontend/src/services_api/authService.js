@@ -46,7 +46,7 @@ export const iniciarMonitorInactividad = (onTimeoutCallback) => {
         }, TIEMPO_INACTIVIDAD);
     };
 
-    const eventos = ['mousemove', 'keydown', 'click', 'tocuhstart', 'scroll'];
+    const eventos = ['mousemove', 'keydown', 'click', 'touchstart', 'scroll'];
     eventos.forEach((evento) => window.addEventListener(evento, reiniciarTemporizador));
     reiniciarTemporizador();
 

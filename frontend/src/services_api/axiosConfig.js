@@ -54,7 +54,7 @@ api.interceptors.request.use(
 api.interceptors.response.use(
     (response) => response,
     async (error) => {
-        const originalRequest = error.congif;
+        const originalRequest = error.config;
 
         if (!originalRequest || (originalRequest.url && originalRequest.url.includes('/token/'))) {
             return Promise.reject(error);

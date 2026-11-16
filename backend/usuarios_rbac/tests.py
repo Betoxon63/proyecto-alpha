@@ -1,18 +1,12 @@
 from django.test import TestCase
 from django.core.cache import cache
-from django.core.exceptions import PermissionDenied
-from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient
 from rest_framework import status
 
 from usuarios_rbac.models import Rol, Usuario
-from usuarios_rbac.validators import validar_rut
-from catalogo_inventario.models import Categoria, UnidadMedida, Articulo
-from catalogo_inventario.serializers import ArticuloSerializer
-from cardex_auditoria.models import TipoMovimiento, MovimientoArticulo
 
-
-class LoginSecurityTests(TestCase):
+# Pruebas de seguridad en inicio de sesión y seguridad para la gestión de usuarios.
+class PruebasSeguridadUsuarios(TestCase):
     def setUp(self):
         cache.clear()
         self.client = APIClient()
@@ -22,6 +16,7 @@ class LoginSecurityTests(TestCase):
         self.url_usuarios = '/api/usuarios/'
 
         self.rol_admin, _ = Rol.objects.get_or_create(nombre=Rol.ADMIN)
+        self.rol_soporte, _ = Rol.objects.get_or_create(nombre=Rol.SOPORTE_TI)
         self.rol_bodega, _ = Rol.objects.get_or_create(nombre=Rol.BODEGA)
 
         self.admin_user = Usuario.objects.create_user(
@@ -30,6 +25,14 @@ class LoginSecurityTests(TestCase):
             rut='11111111-1',
             password='ClaveSegura2026!',
             id_rol=self.rol_admin
+        )
+
+        self.soporte_user = Usuario.objects.create_user(
+            correo_electronico='soporte@fyag.cl',
+            nombre='Soporte Técnico FYAG',
+            rut='33333333-3',
+            password='ClaveSoporte2026!',
+            id_rol=self.rol_soporte
         )
 
         self.bodega_user = Usuario.objects.create_user(
@@ -43,13 +46,13 @@ class LoginSecurityTests(TestCase):
     def tearDown(self):
         cache.clear()
 
-    def test_encriptacion_password(self):
-        """ Verifica que la contraseña esté encriptada con PBKDF2 y no en texto plano. """
+    # Comprueba que la contraseña se guarde protegida y no como texto visible.
+    def test_proteccion_password(self):
         self.assertNotEqual(self.admin_user.password, 'ClaveSegura2026!')
         self.assertTrue(self.admin_user.password.startswith('pbkdf2_sha256$'))
 
+    # Comprueba que un correo no registrado y una clave equivocada muestren el mismo aviso.
     def test_datos_inexistentes(self):
-        """ Verifica que correo inexistente y clave errónea entreguen el mismo mensaje 401. """
         res_inexistente = self.client.post(self.url_login, {
             'correo_electronico': 'noexiste@fyag.cl',
             'password': 'ClaveCualquiera123'
@@ -64,8 +67,8 @@ class LoginSecurityTests(TestCase):
         self.assertEqual(res_clave_erronea.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertEqual(res_inexistente.data['detail'], res_clave_erronea.data['detail'])
 
+    # Comprueba que textos maliciosos en el inicio de sesión sean reachazados sin dañar la tabla.
     def test_inyeccion_sql(self):
-        """ Verifica que intentos de inyección SQL en el login sean rechazados. """
         payload_sqli = "' OR 1=1; DROP TABLE usuarios; --"
         response = self.client.post(self.url_login, {
             'correo_electronico': payload_sqli,
@@ -75,8 +78,8 @@ class LoginSecurityTests(TestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertTrue(Usuario.objects.filter(correo_electronico='admin_seguridad@fyag.cl').exists())
 
-    def test_bloqueo(self):
-        """ Bloqueo tras 5 intentos fallidos. """
+    # Comprueba que la cuenta se bloquee temporalmente tras 5 intentos fallidos.
+    def test_bloqueo_intentos_fallidos(self):
         datos_fallidos = {
             'correo_electronico': 'admin_seguridad@fyag.cl',
             'password': 'PasswordErronea'
@@ -86,24 +89,24 @@ class LoginSecurityTests(TestCase):
             res = self.client.post(self.url_login, datos_fallidos, format='json')
             self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
 
-        # El sexto intento debe activar el bloqueo por 10 minutos (HTTP 429).
+        # El sexto intento activa el bloqueo por 10 minutos (429).
         res_bloqueo = self.client.post(self.url_login, datos_fallidos, format='json')
         self.assertEqual(res_bloqueo.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
 
-        # Si ingresa la contraseña correcta estando bloqueado se mantiene el bloqueo.
-        res_clave =self.client.post(self.url_login, {
+        # Aunque escriba la contraseña correcta mientras está bloqueado, se mantiene el bloqueo.
+        res_clave = self.client.post(self.url_login, {
             'correo_electronico': 'admin_seguridad@fyag.cl',
             'password': 'ClaveSegura2026!'
         }, format='json')
         self.assertEqual(res_clave.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
 
-    def test_control_acceso(self):
-        """ Bloquea anónimos con 401 y rol Bodega en módulo de usuarios con 403. """
-        # Usuario no autenticado (401).
+    # Comprueba que Soporte Técnico pueda gestionar trabajadores y Bodega tenga el paso bloqueado.
+    def test_control_acceso_por_cargo(self):
+        # Sin iniciar sesión se rechaza el acceso (401).
         res_anonimo = self.client.get(self.url_usuarios)
         self.assertEqual(res_anonimo.status_code, status.HTTP_401_UNAUTHORIZED)
 
-        # Usuario con rol Bodega en gestión de usuarios (403).
+        # Cargo Bodega no puede entrar a la sección de trabajadores (403).
         login_bodega = self.client.post(self.url_login, {
             'correo_electronico': 'bodega_seguridad@fyag.cl',
             'password': 'ClaveBodega2026!'
@@ -114,18 +117,29 @@ class LoginSecurityTests(TestCase):
         res_prohibido = self.client.get(self.url_usuarios)
         self.assertEqual(res_prohibido.status_code, status.HTTP_403_FORBIDDEN)
 
-    def test_logout_blacklist(self):
-        """ Verifica que al cerrar sesión el Refresh Token pase a la Blacklist. """
+        # Cargo Bodega no puede entrar a la sección de trabajadores (403).
+        login_soporte = self.client.post(self.url_login, {
+            'correo_electronico': 'soporte@fyag.cl',
+            'password': 'ClaveSoporte2026!'
+        }, format='json')
+        token_soporte = login_soporte.data['access']
+
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token_soporte}')
+        res_soporte = self.client.get(self.url_usuarios)
+        self.assertEqual(res_soporte.status_code, status.HTTP_200_OK)
+
+    # Comprueba que al cerrar sesión ya no se pueda reutilizar el pase de acceso.
+    def test_cierre_sesion(self):
         login_res = self.client.post(self.url_login, {
             'correo_electronico': 'admin_seguridad@fyag.cl',
             'password': 'ClaveSegura2026!'
         }, format='json')
         refresh_token = login_res.data['refresh']
 
-        # Enviar token a la lista negra (Logout).
+        # Cerrar sesión.
         logout_res = self.client.post(self.url_logout, {'refresh': refresh_token}, format='json')
         self.assertEqual(logout_res.status_code, status.HTTP_200_OK)
 
-        # Intentar usar el mismo Refresh Token después del logout.
+        # Intentar renovar sesión después de haber salido debe ser rechazado (401).
         reuso_res = self.client.post(self.url_refresh, {'refresh': refresh_token}, format='json')
         self.assertEqual(reuso_res.status_code, status.HTTP_401_UNAUTHORIZED)

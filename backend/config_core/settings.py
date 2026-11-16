@@ -4,20 +4,20 @@ from datetime import timedelta
 import dj_database_url
 from dotenv import load_dotenv
 
-# Cargar variables de entorno desde .env.
+# Carga los datos de configuración guardados en el archivo .env.
 load_dotenv()
 
-# Construir la ruta base del proyecto.
+# Ruta inicial del proyecto.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Configuración de seguridad y depuración.
+# Clave de seguridad y modo de prueba.
 SECRET_KEY = os.environ.get('SECRET_KEY', 'clave-secreta-desarrollo-proyecto-alpha-fyag-2026')
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-# Permitir todas las direcciones IP para desarrollo.
+# Direcciones permitidas para conectarse al servidor.
 ALLOWED_HOSTS = ['*']
 
-# Aplicaciones instaladas.
+# Módulos activos del sistema.
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -25,12 +25,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # Librerías de terceros.
+    # Herramientas externas.
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
-    # Aplicaciones locales.
+    # Módulos del sistema FYAG.
     'usuarios_rbac',
     'catalogo_inventario',
     'compras_entidades',
@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     'cardex_auditoria',
 ]
 
-# Configuración de middleware.
+# Filtros de seguridad para las peticiones que llegan al servidor.
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -52,7 +52,6 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'config_core.urls'
 
-# Configuración de plantillas.
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -71,8 +70,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config_core.wsgi.application'
 
-
-# Configuración a Supabase.
+# Conexión a la base de datos en Supabase.
 DATABASES = {
     'default': dj_database_url.config(
         default=os.environ.get('DATABASE_URL'),
@@ -80,7 +78,7 @@ DATABASES = {
     )
 }
 
-# Caché en memoria para el control de fuerza bruta.
+# Memoria temporal para contar intentos fallidos el iniciar sesión.
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
@@ -88,16 +86,16 @@ CACHES = {
     }
 }
 
-# Modelo de usuario personalizado para la matriz RBAC.
+# Tabla principal de trabajadores del sistema.
 AUTH_USER_MODEL = 'usuarios_rbac.Usuario'
 
-# Encriptación PBKDF2 con SHA-256.
+# Sistema de protección de contraseñas.
 PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.PBKDF2PasswordHasher',
     'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
 ]
 
-# Configuración de DRF y obligatoriedad de autenticación.
+# Exige que el trabajador haya iniciado sesión para usar el sistema.
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -107,7 +105,7 @@ REST_FRAMEWORK = {
     )
 }
 
-# Tokens JWT Rotativos.
+# Duración de la sesión activa (15 minutos sin uso y 8 horas de jornada).
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
     'REFRESH_TOKEN_LIFETIME': timedelta(hours=8),
@@ -119,7 +117,7 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
 }
 
-# Configuración de CORS.
+# Permisos de conexión entre la pantalla web y el servidor.
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 CORS_ALLOW_CREDENTIALS = True
 
@@ -127,7 +125,7 @@ cors_origins_env = os.environ.get('CORS_ALLOWED_ORIGINS', '')
 if cors_origins_env:
     CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins_env.split(',') if origin.strip()]
 
-# Seguridad adicional para proteger contra ataques de clickjacking y XSS.
+# Protección adicional para el navegador.
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
@@ -140,7 +138,7 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 
-# Internacionalización.
+# Idioma y zona horaria en Chile.
 LANGUAGE_CODE = 'es-cl'
 TIME_ZONE = 'America/Santiago'
 USE_I18N = True
@@ -150,7 +148,7 @@ STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Bitácora de auditoría.
+# Archivo donde se guardan los avisos de seguridad y accesos rechazados.
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,

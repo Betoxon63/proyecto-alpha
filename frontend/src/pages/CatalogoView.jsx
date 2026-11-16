@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
+import { Boxes, Search, PlusCircle, Edit2, Trash2, Tag } from 'lucide-react';
 import { obtenerArticulos, crearArticulo, actualizarArticulo, eliminarArticulo, obtenerCategorias, crearCategoria, obtenerUnidades, crearUnidad, } from '../services_api/inventarioService';
 import AlertaStock from "../components/AlertaStock";
+import '../styles/CatalogoView.css'
 
 const estadoInicialArticulo = {
     codigo_barra: '',
@@ -18,30 +20,36 @@ const CatalogoView = ({ usuario }) => {
     const [articulos, setArticulos] = useState([]);
     const [categorias, setCategorias] = useState([]);
     const [unidades, setUnidades] = useState([]);
-    const [busqueda, setBusqueda] = useState([]);
+    const [busqueda, setBusqueda] = useState('');
+    const [filtroStock, setFiltroStock] = useState('Todos');
     const [formArticulo, setFormArticulo] = useState(estadoInicialArticulo);
     const [editandoId, setEditandoId] = useState(null);
     const [nuevaCategoria, setNuevaCategoria] = useState('');
     const [nuevaUnidad, setNuevaUnidad] = useState('');
     const [mensaje, setMensaje] = useState('');
     const [error, setError] = useState('');
+    const [cargando, setCargando] = useState(true);
 
     const rol = usuario?.rol;
     const puedeEscribir = ['administracion', 'encargado_bodega'].includes(rol);
     const puedeEliminar = rol == 'administracion';
 
-    const cargarDatos = async (filtro = '') => {
+    // Carga los materiales, categorías y unidades desde el servidor.
+    const cargarDatos = async () => {
+        setCargando(true);
         try {
             const [resArt, resCat, resUni] = await Promise.all([
-                obtenerArticulos(filtro),
+                obtenerArticulos(),
                 obtenerCategorias(),
                 obtenerUnidades(),
             ]);
-            setArticulos(resArt.data);
-            setCategorias(resCat.data);
-            setUnidades(resUni.data);
+            setArticulos(resArt.data || []);
+            setCategorias(resCat.data || []);
+            setUnidades(resUni.data || []);
         } catch {
-            setError('No se pudo cargar el catálogo de artículos.');
+            setError('No se pudo cargar el listado de materiales de bodega.');
+        } finally {
+            setCargando(false);
         }
     };
 
@@ -49,11 +57,7 @@ const CatalogoView = ({ usuario }) => {
         cargarDatos();
     }, []);
 
-    const manejarBusqueda = (e) => {
-        e.preventDefault();
-        cargarDatos(busqueda);
-    };
-
+    // Guarda un material nuevo o actualiza uno existente.
     const guardarArticulo = async (e) => {
         e.preventDefault();
         setError('');
@@ -61,20 +65,29 @@ const CatalogoView = ({ usuario }) => {
         try {
             if (editandoId) {
                 await actualizarArticulo(editandoId, formArticulo);
-                setMensaje('Artículo actualizado correctamente.');
+                setMensaje('Los datos del material se actualizaron correctamente.');
             } else {
                 await crearArticulo(formArticulo);
-                setMensaje('Artículo registrado en el catálogo maestro.');
+                setMensaje('Nuevo material registrado en la bodega.');
             }
             setFormArticulo(estadoInicialArticulo);
             setEditandoId(null);
-            cargarDatos(busqueda);
+            await cargarDatos();
         } catch (err) {
-            setError(JSON.stringify(err.response?.data || 'Error al guardar el artículo.'));
+            const dataErr = err.response?.data;
+            if (dataErr && typeof dataErr === 'object') {
+                const detalle = Object.values(dataErr).flat().join(' ');
+                setError(detalle);
+            } else {
+                setError('No se pudo guardar el material. Verifique que el código de barras no esté repetido.')
+            }
         }
     };
 
+    // Carga los datos del material seleccionado en el formulario para editarlo.
     const seleccionarParaEditar = (art) => {
+        setMensaje('');
+        setError('');
         setEditandoId(art.id_articulo);
         setFormArticulo({
             codigo_barra: art.codigo_barra,
@@ -89,237 +102,386 @@ const CatalogoView = ({ usuario }) => {
         });
     };
 
-    const borrarArticulo = async (id) => {
-        if (!window.confirm('¿confirmar eliminación del artículo?')) return;
+    // Elimina un material si no tiene movimientos registrados en el historial.
+    const borrarArticulo = async (id, nombre) => {
+        if (!window.confirm(`¿Está seguro de eliminar el material "${nombre}"?`)) return;
+        setMensaje('');
+        setError('');
         try {
             await eliminarArticulo(id);
-            cargarDatos(busqueda);
+            setMensaje('Material eliminado correctamente.')
+            await cargarDatos();
         } catch {
-            setError('Nose puede eliminar un artículo con movimientos asociados.')
+            setError('No se puede eliminar un material que ya tiene registros de entradas o salidas en el historial.');
         }
     };
 
+    // Permite crear rápidamente una nueva categoría de materiales.
     const agregarCategoriaRapida = async (e) => {
         e.preventDefault();
         if (!nuevaCategoria.trim()) return;
+        setError('');
+        setMensaje('');
         try {
-            await crearCategoria({ nombre: nuevaCategoria });
+            await crearCategoria({ nombre: nuevaCategoria.trim() });
             setNuevaCategoria('');
-            cargarDatos(busqueda);
+            setMensaje('Nueva categoría agregada correctamente.');
+            await cargarDatos();
         } catch {
-            setError('Error al crear la categoría.');
+            setError('No se pudo crear la categoría (verifique que no exista una con el mismo nombre).');
         }
     };
 
+    // Permite crear rápidamente una nueva unidad de medida.
     const agregarUnidadRapida = async (e) => {
         e.preventDefault();
         if (!nuevaUnidad.trim()) return;
+        setError('');
+        setMensaje('');
         try {
-            await crearUnidad({ nombre: nuevaUnidad });
+            await crearUnidad({ nombre: nuevaUnidad.trim() });
             setNuevaUnidad('');
-            cargarDatos(busqueda);
+            setMensaje('Nueva unidad de medida agregada correctamente.');
+            await cargarDatos();
         } catch {
-            setError('Error al crear la unidad de medida.');
+            setError('No se pudo crear la unidad de medida (verifique que no esté repetida).');
         }
     };
 
+    // Filtra los materiales según el buscador y el botón de estado seleccionado.
+    const articulosFiltrados = articulos.filter((art) => {
+        const esCritico = Number(art.stock_disponible) <= Number(art.stock_minimo);
+        if (filtroStock === 'Stock Normal' && esCritico) return false;
+        if (filtroStock === 'Stock Bajo' && !esCritico) return false;
+
+        if (busqueda.trim() !== '') {
+            const q = busqueda.toLowerCase();
+            const nombreTxt = (art.nombre || '').toLowerCase();
+            const codigoTxt = String(art.codigo_barra || '').toLowerCase();
+            const categoriaTxt = (art.categoria_nombre || '').toLowerCase();
+            const ubicacionTxt = (art.ubicacion || '').toLowerCase();
+            return(
+                nombreTxt.includes(q) ||
+                codigoTxt.includes(q) ||
+                categoriaTxt.includes(q) ||
+                ubicacionTxt.includes(q)
+            );
+        }
+        return true;
+    });
+
+    const totalStockBajo = articulos.filter((a) => Number(a.stock_disponible) <= Number(a.stock_minimo)).length;
+    const totalStockNormal = articulos.length - totalStockBajo;
+
     return (
         <div className="contenedor-vista">
-            <div className="cabecera-seccion">
-                <h2>Catálogo Maestro de Artículos</h2>
-                <form onSubmit={manejarBusqueda} className="barra-busqueda">
-                    <input 
-                        type="text"
-                        placeholder="Buscar por código de barra o nombre..."
-                        value={busqueda}
-                        onChange={(e) => setBusqueda(e.target.value)}
-                    />
-                    <button type="submit" className="btn-primario"Buscar></button>
-                </form>
-            </div>
-
-            {mensaje && <div className="alerta-exito">{mensaje}</div>}
-            {error && <div className="alerta-error">{error}</div>}
-
-            {puedeEscribir && (
-                <div className="panel-formularios">
-                    <form onSubmit={guardarArticulo} className="card-formulario">
-                        <h3>{editandoId ? 'Editar Artículo' : 'Registrar Nuevo Insumo'}</h3>
-                        <div className="grid-inputs">
-                            <input 
-                                type="number"
-                                placeholder="Código de Barras"
-                                value={formArticulo.codigo_barra}
-                                onChange={(e) => setFormArticulo({ ...formArticulo, codigo_barra: e.target.value })}
-                                required
-                            />
-                            <input 
-                                type="text"
-                                placeholder="Nombre (Ej: Tubo de cobre 1/2)"
-                                value={formArticulo.nombre}
-                                onChange={(e) => setFormArticulo({ ...formArticulo, nombre: e.target.value })}
-                                required
-                            />
-                            <select value={formArticulo.id_categoria} onChange={(e) => setFormArticulo({ ...formArticulo, id_categoria: e.target.value})} required>
-                                <option value="">Seleccione Categoría...</option>
-                                {categorias.map((c) => (
-                                    <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>
-                                ))}
-                            </select>
-                            <select value={formArticulo.id_unidad_medida} onChange={(e) => setFormArticulo({ ...formArticulo, id_unidad_medida: e.target.value})} required>
-                                <option value="">Seleccione Unidad...</option>
-                                {unidades.map((u) => (
-                                    <option key={u.id_unidad_medida} value={u.id_unidad_medida}>{u.nombre}</option>
-                                ))}
-                            </select>
-                            <input 
-                                type="text"
-                                placeholder="Ubicación (Ej: Pasillo A-2)"
-                                value={formArticulo.ubicacion}
-                                onChange={(e) => setFormArticulo({ ...formArticulo, ubicacion: e.target.value })}
-                                required
-                            />
-                            <label className="campo-etiqueta">
-                                Stock Disponible
-                                <input 
-                                    type="number"
-                                    min="0"
-                                    value={formArticulo.stock_disponible}
-                                    onChange={(e) => setFormArticulo({ ...formArticulo, stock_disponible: Number(e.target.value) })}
-                                    required
-                                />
-                            </label>
-                            <label className="campo-etiqueta">
-                                Stock Mínimo
-                                <input 
-                                    type="number"
-                                    min="0"
-                                    value={formArticulo.stock_minimo}
-                                    onChange={(e) => setFormArticulo({ ...formArticulo, stock_minimo: Number(e.target.value) })}
-                                    required
-                                />
-                            </label>
-                            <label className="campo-etiqueta">
-                                Stock Comprometido
-                                <input 
-                                    type="number"
-                                    min="0"
-                                    value={formArticulo.stock_comprometido}
-                                    onChange={(e) => setFormArticulo({ ...formArticulo, stock_comprometido: Number(e.target.value) })}
-                                    required
-                                />
-                            </label>
-                            <label className="campo-etiqueta">
-                                Precio Unitario ($)
-                                <input 
-                                    type="number"
-                                    min="0"
-                                    value={formArticulo.precio}
-                                    onChange={(e) => setFormArticulo({ ...formArticulo, precio: Number(e.target.value) })}
-                                    required
-                                />
-                            </label>
-                        </div>
-                        <div className="acciones-form">
-                            <button type="submit" className="btn-primario">
-                                {editandoId ? 'Actualizar Artículo' : 'Guardar Artículo'}
-                            </button>
-                            {editandoId && (
-                                <button type="button" className="btn-secundario" onClick={() => {setEditandoId(null); setFormArticulo(estadoInicialArticulo); }}>Cancelar</button>
-                            )}
-                        </div>
-                    </form>
-
-                    <div className="card-auxiliar">
-                        <h4>Agregar Categoría / Unidad</h4>
-                        <form onSubmit={agregarCategoriaRapida} className="form-inline">
-                            <input 
-                                type="text"
-                                placeholder="Nueva categoría (Ej: Refrigeración)"
-                                value={nuevaCategoria}
-                                onChange={(e) => setNuevaCategoria(e.target.value)}
-                                required
-                            />
-                            <button type="submit" className="btn-secundario">+ Categoría</button>
-                        </form>
-                        <form onSubmit={agregarUnidadRapida} className="form-inline">
-                            <input 
-                                type="text"
-                                placeholder="Nueva unidad (Ej: Metros lineales)"
-                                value={nuevaUnidad}
-                                onChange={(e) => setNuevaUnidad(e.target.value)}
-                                required
-                            />
-                            <button type="submit" className="btn-secundario">+ Unidad</button>
-                        </form>
+            <div className="catalogo-container">
+                <div className="catalogo-header">
+                    <div>
+                        <h1 className="catalogo-title">Catálogo de Materiales y Repuestos de Bodega</h1>
+                        <p className="catalogo-subtitle">
+                            Control de existencias disponibles, ubicaciones en bodega, precios y avisos de reposición
+                        </p>
                     </div>
                 </div>
-            )}
 
-            <div className="vista-pc-tabla">
-                <table className="tabla-fyag">
-                    <thead>
-                        <tr>
-                            <th>Código</th>
-                            <th>Insumo</th>
-                            <th>Categoría</th>
-                            <th>Ubicación</th>
-                            <th>Disponible</th>
-                            <th>Comprometido</th>
-                            <th>Estado Stock</th>
-                            <th>Precio</th>
-                            {puedeEscribir && <th>Acciones</th>}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {articulos.map((art) => (
-                            <tr key={art.id_articulo}>
-                                <td>{art.codigo_barra}</td>
-                                <td><strong>{art.nombre}</strong> ({art.unidad_nombre})</td>
-                                <td>{art.categoria_nombre}</td>
-                                <td>{art.ubicacion}</td>
-                                <td>{art.stock_disponible}</td>
-                                <td>{art.stock_comprometido}</td>
-                                <td>
-                                    <AlertaStock disponible={art.stock_disponible} minimo={art.stock_minimo} />
-                                </td>
-                                <td>${art.precio.toLocaleString('es-CL')}</td>
-                                {puedeEscribir && (
-                                    <td>
-                                        <button onClick={() => seleccionarParaEditar(art)} className="btn-tabla">Editar</button>
-                                        {puedeEliminar && (
-                                            <button onClick={() => borrarArticulo(art.id_articulo)} className="btn-peligro">Eliminar</button>
-                                        )}
-                                    </td>
-                                )}
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+                {mensaje && <div className="alerta-exito">{mensaje}</div>}
+                {error && <div className="alerta-error">{error}</div>}
 
-            <div className="vista-tablet-tarjetas">
-                {articulos.map((art) => (
-                    <div key={art.id_articulo} className="tarjeta-tactil">
-                        <div className="tarjeta-cabecera">
-                            <strong>{art.nombre}</strong>
-                            <AlertaStock disponible={art.stock_disponible} minimo={art.stock_minimo} />
-                        </div>
-                        <p className="tarjeta-meta">
-                            Código: {art.codigo_barra} | Ubicación: {art.ubicacion}
-                        </p>
-                        <div className="tarjeta-saldos">
-                            <span>Disponible: <strong>{art.stock_disponible} {art.unidad_nombre}</strong></span>
-                            <span>Comprometido: <strong>{art.stock_comprometido}</strong></span>
-                            <span>Precio: <strong>{art.precio.toLocaleString('es-CL')}</strong></span>
-                        </div>
-                        {puedeEscribir && (
-                            <div className="tarjeta-botones">
-                                <button onClick={() => seleccionarParaEditar(art)} className="btn-primario">Editar Insumo</button>
-                            </div>
-                        )}
+                <div className="catalogo-kpi-grid">
+                    <div className="catalogo-kpi-card">
+                        <div className="catalogo-kpi-label">Total de Materiales en Catálogo</div>
+                        <div className="catalogo-kpi-value">{articulos.length}</div>
                     </div>
-                ))}
+                    <div className="catalogo-kpi-card">
+                        <div className="catalogo-kpi-label">Con Stock Suficiente</div>
+                        <div className="catalogo-kpi-value">{totalStockNormal}</div>
+                    </div>
+                    <div className="catalogo-kpi-card alerta">
+                        <div className="catalogo-kpi-label">Materiales por Agotarse</div>
+                        <div className="catalogo-kpi-value">{totalStockBajo}</div>
+                    </div>
+                </div>
+
+                {puedeEscribir && (
+                    <div className="catalogo-forms-layout">
+                        <form onSubmit={guardarArticulo} className="catalogo-card">
+                            <h3 className="catalogo-card-title">
+                                <Boxes size={18} color="#1b5e20" />
+                                <span>{editandoId ? `Modificar Material #${editandoId}` : 'Registrar Nuevo Material en Bodega'}</span>
+                            </h3>
+
+                            <div className="catalogo-form-grid">
+                                <div className="catalogo-field">
+                                    <label className="catalogo-label">Código de Barras</label>
+                                    <input
+                                        type="number"
+                                        className="catalogo-input"
+                                        placeholder="Ej: 780123456789"
+                                        value={formArticulo.codigo_barra}
+                                        onChange={(e) => setFormArticulo({ ...formArticulo, codigo_barra: e.target.value })}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="catalogo-field">
+                                    <label className="catalogo-label">Nombre del Material</label>
+                                    <input
+                                        type="text"
+                                        className="catalogo-input"
+                                        placeholder="Ej: Tubo de cobre 1/2"
+                                        value={formArticulo.nombre}
+                                        onChange={(e) => setFormArticulo({ ...formArticulo, nombre: e.target.value })}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="catalogo-field">
+                                    <label className="catalogo-label">Categoría</label>
+                                    <select className="catalogo-select" value={formArticulo.id_categoria} onChange={(e) => setFormArticulo({ ...formArticulo, id_categoria: e.target.value })} required>
+                                        <option value="">Seleccione categoría...</option>
+                                        {categorias.map((c) => (
+                                            <option key={c.id_categoria} value={c.id_categoria}>
+                                                {c.nombre}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="catalogo-field">
+                                    <label className="catalogo-label">Unidad de Medida</label>
+                                    <select className="catalogo-select" value={formArticulo.id_unidad_medida} onChange={(e) => setFormArticulo({ ...formArticulo, id_unidad_medida: e.target.value })} required>
+                                        <option value="">Seleccione unidad...</option>
+                                        {unidades.map((u) => (
+                                            <option key={u.id_unidad_medida} value={u.id_unidad_medida}>
+                                                {u.nombre}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="catalogo-field">
+                                    <label className="catalogo-label">Ubicación en Bodega</label>
+                                    <input
+                                        type="text"
+                                        className="catalogo-input"
+                                        placeholder="Ej: Pasillo A - Estante 2"
+                                        value={formArticulo.ubicacion}
+                                        onChange={(e) => setFormArticulo({ ...formArticulo, ubicacion: e.target.value })}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="catalogo-field">
+                                    <label className="catalogo-label">Cantidad Disponible</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        className="catalogo-input"
+                                        value={formArticulo.stock_disponible}
+                                        onChange={(e) => setFormArticulo({ ...formArticulo, stock_disponible: Number(e.target.value) })}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="catalogo-field">
+                                    <label className="catalogo-label">Cantidad Mínima (Aviso)</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        className="catalogo-input"
+                                        value={formArticulo.stock_minimo}
+                                        onChange={(e) => setFormArticulo({ ...formArticulo, stock_minimo: Number(e.target.value) })}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="catalogo-field">
+                                    <label className="catalogo-label">Reservado para Obras</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        className="catalogo-input"
+                                        value={formArticulo.stock_comprometido}
+                                        onChange={(e) => setFormArticulo({ ...formArticulo, stock_comprometido: Number(e.target.value) })}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="catalogo-field">
+                                    <label className="catalogo-label">Precio Unitario ($)</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        className="catalogo-input"
+                                        value={formArticulo.precio}
+                                        onChange={(e) => setFormArticulo({ ...formArticulo, precio: Number(e.target.value) })}
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="catalogo-form-actions">
+                                <button type="submit" className="catalogo-btn-save">
+                                    <PlusCircle size={16} />
+                                    <span>{editandoId ? 'Guardar Cambios' : 'Guardar Material'}</span>
+                                </button>
+                                {editandoId && (
+                                    <button
+                                        type="button"
+                                        className="catalogo-btn-cancel"
+                                        onClick={() => {
+                                            setEditandoId(null);
+                                            setFormArticulo(estadoInicialArticulo);
+                                        }}
+                                    >Cancelar</button>
+                                )}
+                            </div>
+                        </form>
+
+                        <div className="catalogo-card catalogo-aux-stack">
+                            <h3 className="catalogo-card-title">
+                                <Tag size={18} color="#1b5e20" />
+                                <span>Clasificación de Bodega</span>
+                            </h3>
+
+                            <form onSubmit={agregarCategoriaRapida} className="catalogo-aux-form">
+                                <label className="catalogo-label">Nueva Categoría de Material</label>
+                                <div className="catalogo-aux-row">
+                                        <input
+                                            type="text"
+                                            className="catalogo-input"
+                                            placeholder="Ej: Refrigeración"
+                                            value={nuevaCategoria}
+                                            onChange={(e) => setNuevaCategoria(e.target.value)}
+                                            required
+                                        />
+                                        <button type="submit" className="catalogo-btn-aux">
+                                            + Categoría
+                                        </button>
+                                    </div>
+                            </form>
+
+                            <form onSubmit={agregarUnidadRapida} className="catalogo-aux-form">
+                                <label className="catalogo-label">Nueva Unidad de Medida</label>
+                                <div className="catalogo-aux-row">
+                                        <input
+                                            type="text"
+                                            className="catalogo-input"
+                                            placeholder="Ej: Metros lineales"
+                                            value={nuevaUnidad}
+                                            onChange={(e) => setNuevaUnidad(e.target.value)}
+                                            required
+                                        />
+                                        <button type="submit" className="catalogo-btn-aux">
+                                            + Unidad
+                                        </button>
+                                    </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                <div className="catalogo-table-card">
+                    <div className="catalogo-toolbar">
+                        <div className="catalogo-search-box">
+                            <Search size={15} color="#64748b" />
+                            <input
+                                type="text"
+                                placeholder="Buscar por código, nombre, categoría o pasillo..."
+                                value={busqueda}
+                                onChange={(e) => setBusqueda(e.target.value)}
+                                className="catalogo-search-input"
+                            />
+                        </div>
+
+                        <div className="catalogo-filter-group">
+                            {['Todos', 'Stock Normal', 'Stock Bajo'].map((f) => (
+                                <button
+                                    key={f}
+                                    type="button"
+                                    onClick={() => setFiltroStock(f)}
+                                    className={`catalogo-filter-btn ${filtroStock === f ? 'active' : ''}`}
+                                >{f}</button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="catalogo-table-wrapper">
+                        <table className="catalogo-table">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Material / Repuesto</th>
+                                    <th>Categoría</th>
+                                    <th>Ubicación</th>
+                                    <th>Disponible</th>
+                                    <th>Reservado</th>
+                                    <th>Estado de Stock</th>
+                                    <th>Precio Unitario</th>
+                                    {puedeEscribir && <th>Opciones</th>}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {cargando ? (
+                                    <tr>
+                                        <td colSpan={puedeEscribir ? 9 : 8} className="catalogo-empty">
+                                            Cargando materiales de bodega...
+                                        </td>
+                                    </tr>
+                                ) : articulosFiltrados.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={puedeEscribir ? 9 : 8} className="catalogo-empty">
+                                            No se encontraron materiales con los filtros seleccionados.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    articulosFiltrados.map((art) => (
+                                        <tr key={art.id_articulo}>
+                                            <td>
+                                                <span className="catalogo-code-badge">
+                                                    {art.codigo_barra}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div className="catalogo-item-name">{art.nombre}</div>
+                                                <div className="catalogo-item-unit">Unidad: {art.unidad_nombre}</div>
+                                            </td>
+                                            <td>
+                                                <span className="catalogo-category-tag">{art.categoria_nombre}</span>
+                                            </td>
+                                            <td>{art.ubicacion}</td>
+                                            <td className="catalogo-qty-bold">{art.stock_disponible}</td>
+                                            <td>{art.stock_comprometido}</td>
+                                            <td>
+                                                <AlertaStock disponible={art.stock_disponible} minimo={art.stock_minimo} />
+                                            </td>
+                                            <td className="catalogo-price">
+                                                ${Number(art.precio || 0).toLocaleString('es-CL')}
+                                            </td>
+                                            {puedeEscribir && (
+                                                <td>
+                                                    <div className="catalogo-actions-cell">
+                                                        <button type="button" onClick={() => seleccionarParaEditar(art)} className="catalogo-btn-edit">
+                                                            <Edit2 size={13} />
+                                                            <span>Editar</span>
+                                                        </button>
+                                                        {puedeEliminar && (
+                                                            <button type="button" onClick={() => borrarArticulo(art.id_articulo, art.nombre)} className="catalogo-btn-delete">
+                                                                <Trash2 size={13} />
+                                                                <span>Eliminar</span>
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            )}
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     );

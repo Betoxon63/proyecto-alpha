@@ -1,0 +1,399 @@
+/* Estilos de la pantalla de Personal y Cuentas de Acceso */
+
+.usuarios-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.usuarios-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.usuarios-title {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--color-texto);
+    margin: 0 0 4px;
+    letter-spacing: -0.5px;
+}
+
+.usuarios-subtitle {
+    font-size: 13px;
+    color: var(--color-texto-suave);
+    margin: 0;
+}
+
+.usuarios-btn-add {
+    background-color: var(--color-primario);
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 13.5px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.usuarios-btn-add:hover {
+    background-color: var(--color-primario-hover);
+}
+
+/* Resumen de funciones por cargo */
+.usuarios-rbac-card {
+    background-color: var(--color-superficie);
+    border-radius: 14px;
+    border: 1px solid var(--color-suave);
+    padding: 18px 20px;
+    box-shadow: var(--sombra-suave);
+}
+
+.usuarios-rbac-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--color-texto);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.usuarios-rbac-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+    gap: 12px;
+}
+
+.usuarios-rbac-item {
+    padding: 10px 12px;
+    border-radius: 8px;
+    background-color: var(--color-superficie-suave);
+    border: 1px solid var(--color-borde);
+}
+
+.usuarios-rbac-role {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--color-texto);
+}
+
+.usuarios-rbac-scope {
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 2px;
+}
+
+.usuarios-rbac-scope.admin { color: #16a34a; }
+.usuarios-rbac-scope.soporte { color: #0284c7; }
+.usuarios-rbac-scope.bodega { color: #2563eb; }
+.usuarios-rbac-scope.finanzas { color: #d97706; }
+.usuarios-rbac-scope.supervisor { color: #7c3aed; }
+
+.usuarios-rbac-desc {
+    font-size: 10.5px;
+    color: var(--color-texto-suave);
+    margin-top: 2px;
+}
+
+/* Tabla de trabajadores */
+.usuarios-table-card {
+    background-color: var(--color-superficie);
+    border-radius: 14px;
+    border: 1px solid var(--color-borde);
+    overflow: hidden;
+    box-shadow: var(--sombra-suave);
+}
+
+.usuarios-table-toolbar {
+    padding: 14px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.usuarios-search-box {
+    display: flex;
+    align-items: center;
+    background-color: var(--color-superficie-suave);
+    border: 1px solid var(--color-borde-input);
+    border-radius: 8px;
+    padding: 6px 12px;
+    width: 320px;
+    gap: 8px;
+}
+
+.usuarios-search-input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 12.5px;
+    width: 100%;
+    color: #1e293b;
+    padding: 0;
+}
+
+.usuarios-count-label {
+    font-size: 12px;
+    color: var(--color-texto-suave);
+}
+
+.usuarios-table-wrapper {
+    overflow-x: auto;
+}
+
+.usuarios-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 13px;
+}
+
+.usuarios-table thead tr {
+    background-color: var(--color-superficie-suave);
+    color: var(--color-texto-suave);
+    font-size: 11.5px;
+    border-bottom: 1px solid var(--color-borde);
+}
+
+.usuarios-table th {
+    padding: 12px 18px;
+    font-weight: 700;
+}
+
+.usuarios-table tbody tr {
+    border-bottom: 1px solid #f1f5f9;
+    transition: background-color 0.15s ease;
+}
+
+.usuarios-table tbody tr:hover {
+    background-color: var(--color-superficie-suave);
+}
+
+.usuarios-table td {
+    padding: 14px 18px;
+}
+
+.usuarios-td-name {
+    font-weight: 700;
+    color: var(--color-texto);
+}
+
+.usuarios-td-rut {
+    color: var(--color-texto-secundario);
+    font-family: monospace;
+}
+
+.usuarios-td-email,
+.usuarios-td-phone {
+    color: var(--color-texto-secundario);
+}
+
+.usuarios-table-empty {
+    padding: 32px;
+    text-align: center;
+    color: #94a3b8;
+}
+
+/* Etiquetas de cargo y estado */
+.usuarios-role-badge {
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    font-weight: 700;
+    background-color: #f1f5f9;
+    color: #334155;
+}
+
+.usuarios-role-badge.admin { background-color: #dcfce7; color: #15803d; }
+.usuarios-role-badge.soporte { background-color: #e0f2fe; color: #0369a1; }
+.usuarios-role-badge.bodega { background-color: #dbeafe; color: #1d4ed8; }
+.usuarios-role-badge.finanzas { background-color: #fef3c7; color: #b45309; }
+.usuarios-role-badge.supervisor { background-color: #f3e8ff; color: #6b21a8; }
+
+.usuarios-status-active,
+.usuarios-status-inactive {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.usuarios-status-active { color: var(--color-exito); }
+.usuarios-status-inactive { color: var(--color-peligro); }
+
+.usuarios-status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: var(--color-exito);
+}
+
+.usuarios-status-dot.inactive {
+    background-color: var(--color-peligro);
+}
+
+/* Botones de acción en la tabla */
+.usuarios-actions-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.usuarios-btn-edit {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background-color: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.usuarios-btn-edit:hover {
+    background-color: #bae6fd;
+}
+
+.usuarios-btn-delete {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.usuarios-btn-delete:hover {
+    background-color: #fecaca;
+}
+
+/* Ventana emergente de registro y edición */
+.usuarios-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 16px;
+}
+
+.usuarios-modal-card {
+    background-color: var(--color-superficie);
+    border-radius: 16px;
+    max-width: 480px;
+    width: 100%;
+    overflow: hidden;
+    box-shadow: var(--sombra-modal);
+    border: 1px solid var(--color-borde-input);
+}
+
+.usuarios-modal-header {
+    background-color: var(--color-primario);
+    padding: 16px 20px;
+    color: #ffffff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.usuarios-modal-title {
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.usuarios-modal-close {
+    background: none;
+    border: none;
+    color: #ffffff;
+    cursor: pointer;
+    font-size: 18px;
+}
+
+.usuarios-modal-form {
+    padding: 20px;
+}
+
+.usuarios-form-group {
+    margin-bottom: 14px;
+}
+
+.usuarios-form-label {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: #334155;
+}
+
+.usuarios-form-input,
+.usuarios-form-select {
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--color-borde-input);
+    font-size: 13px;
+}
+
+.usuarios-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.usuarios-btn-cancel {
+    padding: 9px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--color-borde-input);
+    background-color: var(--color-superficie);
+    color: var(--color-texto-secundario);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.usuarios-btn-submit {
+    padding: 9px 18px;
+    border-radius: 8px;
+    border: none;
+    background-color: var(--color-primario);
+    color: #ffffff;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.usuarios-btn-submit:hover {
+    background-color: var(--color-primario-hover);
+}
+
+@media (max-width: 900px) {
+    .usuarios-rbac-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .usuarios-search-box {
+        width: 100%;
+    }
+}
