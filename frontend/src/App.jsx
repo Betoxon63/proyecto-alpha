@@ -19,6 +19,7 @@ import { obtenerUsuarioActual, iniciarMonitorInactividad, } from './services_api
 import { obtenerArticulos } from './services_api/inventarioService';
 import { ObrasPage } from './pages/Obras';
 import { BodegaDashboard } from './pages/BodegaDashboard';
+import { Home } from './pages/Home';
 
 // Verifica la sesión y los permisos del trabajador.
 const RutaProtegidaRBAC = ({ usuario, rolesPermitidos, children }) => {
@@ -262,6 +263,7 @@ function AppContent() {
             </RutaProtegidaRBAC>
           }
         />
+        <Route path='/' element={<Home />} />
       </Routes>
 
       <StockAlertModal
