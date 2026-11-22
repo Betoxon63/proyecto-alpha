@@ -9,7 +9,13 @@ class CategoriaSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def validate_nombre(self, value):
-        return validar_texto(value)
+        nombre_limpio = validar_texto(value).strip()
+        qs = Categoria.objects.filter(nombre__iexact=nombre_limpio)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("Ya existe una categoría registrada con este nombre.")
+        return nombre_limpio
 
 class UnidadMedidaSerializer(serializers.ModelSerializer):
     class Meta:
@@ -17,7 +23,13 @@ class UnidadMedidaSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def validate_nombre(self, value):
-        return validar_texto(value)
+        nombre_limpio = validar_texto(value).strip()
+        qs = UnidadMedida.objects.filter(nombre__iexact=nombre_limpio)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("Ya existe una unidad de medida registrada con este nombre.")
+        return nombre_limpio
 
 class ArticuloSerializer(serializers.ModelSerializer):
     categoria_nombre = serializers.CharField(source='id_categoria.nombre', read_only=True)
@@ -45,5 +57,5 @@ class ArticuloSerializer(serializers.ModelSerializer):
         for campo in ['stock_disponible', 'stock_minimo', 'stock_comprometido', 'precio', 'codigo_barra']:
             valor = attrs.get(campo)
             if valor is not None and valor < 0:
-                raise serializers.ValidationError({campo: "El valor debe ser un numero entero positivo."})
+                raise serializers.ValidationError({campo: "El valor debe ser un número entero positivo."})
         return attrs

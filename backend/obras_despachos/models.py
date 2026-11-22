@@ -1,6 +1,8 @@
 from django.db import models
 from compras_entidades.models import Cliente
 from catalogo_inventario.models import Articulo
+from usuarios_rbac.models import Usuario
+
 
 # Categorías de trabajo que realiza la empresa.
 class TipoServicio(models.Model):
@@ -13,7 +15,7 @@ class TipoServicio(models.Model):
     def __str__(self):
         return self.nombre
 
-# Ficha de cada obra o servicio en terreno al cual se le asignan técnicos y manteriales de bodega.
+# Ficha de cada obra o servicio en terreno con su supervisor encargado y técnico asignado.
 class Obra(models.Model):
     EN_PROCESO = 'En proceso'
     FINALIZADA = 'Finalizada'
@@ -30,6 +32,7 @@ class Obra(models.Model):
     id_obra = models.AutoField(primary_key=True)
     fecha_inicio = models.DateField()
     id_cliente = models.ForeignKey(Cliente, on_delete=models.PROTECT, db_column='id_cliente')
+    id_supervisor = models.ForeignKey(Usuario, on_delete=models.PROTECT, db_column='id_supervisor', null=True, blank=True, related_name='obras_supervisadas')
     tecnico_asociado = models.TextField()
     id_tipo_servicio = models.ForeignKey(TipoServicio, on_delete=models.PROTECT, db_column='id_tipo_servicio')
     estado = models.TextField(default=EN_PROCESO)

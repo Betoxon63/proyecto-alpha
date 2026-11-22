@@ -1,11 +1,15 @@
 from django.db.models import Q
-from rest_framework import viewsets
+from django.db.models.deletion import ProtectedError
+from rest_framework import viewsets, status
+from rest_framework.response import Response
+
 from .models import Categoria, UnidadMedida, Articulo
 from .serializers import CategoriaSerializer, UnidadMedidaSerializer, ArticuloSerializer
 from usuarios_rbac.permissions import PermisoArticulos
 from cardex_auditoria.models import MovimientoArticulo, TipoMovimiento
 
-#Guarda en el historial cuando se registra un material nuevo o se ajusta su stock en el catálogo.
+
+# Guarda en el historial los cambios realizados en materiales, categorías o unidades de bodega.
 def registrar_movimiento_catalogo(usuario_autor, articulo_obj, tipo_accion, cantidad, detalle_motivo):
     if not usuario_autor or not usuario_autor.is_authenticated:
         return
@@ -19,17 +23,58 @@ def registrar_movimiento_catalogo(usuario_autor, articulo_obj, tipo_accion, cant
         motivo=detalle_motivo
     )
 
+
 # Gestiona las categorías de materiales.
 class CategoriaViewSet(viewsets.ModelViewSet):
     queryset = Categoria.objects.all().order_by('nombre')
     serializer_class = CategoriaSerializer
     permission_classes = [PermisoArticulos]
 
+    def perform_create(self, serializer):
+        nueva_categoria = serializer.save()
+        detalle = f"Nueva categoría de bodega registrada: {nueva_categoria.nombre}"
+        registrar_movimiento_catalogo(self.request.user, None, 'Registro de Categoría', 1, detalle)
+
+    def perform_update(self, serializer):
+        nombre_previo = self.get_object().nombre
+        categoria_actualizada = serializer.save()
+        detalle = f"Categoría actualizada: {nombre_previo} -> {categoria_actualizada.nombre}"
+        registrar_movimiento_catalogo(self.request.user, None, 'Modificación de Categoría', 1, detalle)
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {"detail": "No se puede eliminar esta categoría porque ya está asignada a uno o más materiales en el catálogo."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
 # Gestiona las unidades de medida.
 class UnidadMedidaViewSet(viewsets.ModelViewSet):
     queryset = UnidadMedida.objects.all().order_by('nombre')
     serializer_class = UnidadMedidaSerializer
     permission_classes = [PermisoArticulos]
+
+    def perform_create(self, serializer):
+        nueva_unidad = serializer.save()
+        detalle = f"Nueva unidad de medida registrada: {nueva_unidad.nombre}"
+        registrar_movimiento_catalogo(self.request.user, None, 'Registro de Unidad', 1, detalle)
+
+    def perform_update(self, serializer):
+        nombre_previo = self.get_object().nombre
+        unidad_actualizada = serializer.save()
+        detalle = f"Unidad de medida actualizada: {nombre_previo} -> {unidad_actualizada.nombre}"
+        registrar_movimiento_catalogo(self.request.user, None, 'Modificación de Unidad', 1, detalle)
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {"detail": "No se puede eliminar esta unidad de medida porque ya está siendo usada por materiales en el catálogo."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 # Gestiona el catálogo de materiales de bodega y su buscador por nombre o código.
 class ArticuloViewSet(viewsets.ModelViewSet):
@@ -93,4 +138,13 @@ class ArticuloViewSet(viewsets.ModelViewSet):
                 'Entrada',
                 0,
                 detalle
+            )
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {"detail": "No se puede eliminar este material porque ya tiene registros de entradas, salidas o facturas en el historial."},
+                status=status.HTTP_400_BAD_REQUEST
             )

@@ -2,7 +2,7 @@ import api from './axiosConfig';
 
 const CARDEX_LOCAL_KEY = 'fyag_cardex_alpha'
 
-// Obtiene todas las obras registradas.
+// Obtiene las obras registradas.
 export const obtenerObras = async () => {
     try {
         const respuesta = await api.get('/obras/');
@@ -30,10 +30,20 @@ export const eliminarObra = async (idObra) => {
     return respuesta.data;
 };
 
-// Obtiene las 8 claasificaciones oficiales de tipos de servicio.
+// Obtiene las 8 clasificaciones oficiales de tipos de servicio.
 export const obtenerTiposServicio = async () => {
     const respuesta = await api.get('/tipos-servicio/');
     return Array.isArray(respuesta.data) ? respuesta.data : [];
+};
+
+// Obtiene los supervisores activos para asignarlos al crear o editar una obra.
+export const obtenerSupervisores = async () => {
+    try {
+        const respuesta = await api.get('/obras/supervisores/');
+        return Array.isArray(respuesta.data) ? respuesta.data : [];
+    } catch {
+        return [];
+    }
 };
 
 // Objeto compatible con la vista Obras.jsx.
@@ -43,6 +53,7 @@ export const obraService = {
     update: actualizarObra,
     delete: eliminarObra,
     getTiposServicio: obtenerTiposServicio,
+    getSupervisores: obtenerSupervisores,
 };
 
 // Consulta el historial general de movimientos desde el servidor.
@@ -114,7 +125,20 @@ export const crearMovimientoCardex = async (datosMovimiento) => {
 // Alias de compatibilidad para componentes de las tandas anteriores.
 export const registrarMovimientoCardex = crearMovimientoCardex;
 
+// Despacha materiales desde bodega hacia una obra en proceso.
 export const despacharObra = async (idObra, datosDespacho) => {
     const respuesta = await api.post(`/obras/${idObra}/despachar/`, datosDespacho);
+    return respuesta.data;
+};
+
+// Registra una merma justificada descontando stock en el servidor.
+export const registrarMerma = async (datosMerma) => {
+    const respuesta = await api.post('/cardex/registrar-merma/', datosMerma);
+    return respuesta.data;
+};
+
+// Registra una devolución desde obra o hacia proveedor.
+export const registrarDevolucion = async (datosDevolucion) => {
+    const respuesta = await api.post('/cardex/registrar-devolucion/', datosDevolucion);
     return respuesta.data;
 };
