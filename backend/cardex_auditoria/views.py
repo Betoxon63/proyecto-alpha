@@ -1,6 +1,11 @@
 from rest_framework import viewsets, serializers
 from .models import MovimientoArticulo
 from usuarios_rbac.permissions import PermisoArticulos
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from django.utils import timezone
+from datetime import timedelta
+from django.db.models import Sum
 
 # Prepara cada fila del historial para mostrarla de forma clara en la pantalla.
 class MovimientoArticuloSerializer(serializers.ModelSerializer):
@@ -76,3 +81,38 @@ class CardexViewSet(viewsets.ModelViewSet):
     serializer_class = MovimientoArticuloSerializer
     permission_classes = [PermisoArticulos]
     http_method_names = ['get', 'post', 'head', 'options']
+
+    @action(detail=False, methods=['get'])
+    def estadisticas_mes(self, request):
+        hace_un_mes = timezone.now() - timedelta(days=30)
+        
+        movimientos = self.get_queryset().filter(
+            fecha__gte=hace_un_mes,
+            id_articulo__isnull=False
+        )
+        
+        ingresos_qs = (
+            movimientos.filter(id_tipo_movimiento_id=8)
+            .values('id_articulo__nombre')
+            .annotate(total=Sum('cantidad'))
+            .order_by('-total')
+        )
+        
+
+        egresos_qs = (
+            movimientos.filter(id_tipo_movimiento_id=7)
+            .values('id_articulo__nombre')
+            .annotate(total=Sum('cantidad'))
+            .order_by('-total')
+        )
+        
+        return Response({
+            'ingresos': [
+                {'articulo': item['id_articulo__nombre'], 'total': item['total']}
+                for item in ingresos_qs
+            ],
+            'egresos': [
+                {'articulo': item['id_articulo__nombre'], 'total': item['total']}
+                for item in egresos_qs
+            ],
+        })
