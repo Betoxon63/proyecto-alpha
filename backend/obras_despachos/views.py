@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models.deletion import ProtectedError
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -7,9 +8,10 @@ from .models import Obra, TipoServicio, DetalleObra
 from .serializers import ObraSerializer, TipoServicioSerializer, DetalleObraSerializer, DespachoObraInputSerializer
 
 from catalogo_inventario.models import Articulo
-from usuarios_rbac.models import Rol
+from usuarios_rbac.models import Rol, Usuario
 from usuarios_rbac.permissions import PermisoObras, registrar_denegacion
 from cardex_auditoria.models import MovimientoArticulo, TipoMovimiento
+
 
 # Guarda en el historial general cada vez que se crea o modifica una obra.
 def registrar_accion_obra(usuario_autor, obra_obj, tipo_accion, detalle_motivo):
@@ -25,11 +27,21 @@ def registrar_accion_obra(usuario_autor, obra_obj, tipo_accion, detalle_motivo):
         motivo=detalle_motivo
     )
 
+
 # Entrega la lista de tipos de servicio.
 class TipoServicioViewSet(viewsets.ModelViewSet):
     queryset = TipoServicio.objects.all().order_by('id_tipo_servicio')
     serializer_class = TipoServicioSerializer
     permission_classes = [PermisoObras]
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {"detail": "No se puede eliminar este tipo de servicio porque ya está asignado a una o más obras."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 # Permite consultar la lista de materiales entregados por obra.
 class DetalleObraViewSet(viewsets.ReadOnlyModelViewSet):
@@ -40,6 +52,11 @@ class DetalleObraViewSet(viewsets.ReadOnlyModelViewSet):
         queryset = DetalleObra.objects.select_related(
             'id_articulo', 'id_articulo__id_unidad_medida', 'id_obra'
         ).all().order_by('-id_detalle_obra')
+
+        usuario = self.request.user
+        if usuario and usuario.is_authenticated and getattr(usuario.id_rol, 'nombre', None) == Rol.SUPERVISOR:
+            queryset = queryset.filter(id_obra__id_supervisor=usuario)
+
         obra_id = self.request.query_params.get('obra')
         if (obra_id):
             queryset = queryset.filter(id_obra_id=obra_id)
@@ -47,13 +64,21 @@ class DetalleObraViewSet(viewsets.ReadOnlyModelViewSet):
 
 # Permite crear, consultar, actualizar obras y despacharles materiales desde bodega.
 class ObraViewSet(viewsets.ModelViewSet):
-    queryset = Obra.objects.select_related(
-        'id_cliente', 'id_tipo_servicio'
-    ).prefetch_related(
-        'detalles__id_articulo__id_unidad_medida'
-    ).all().order_by('-id_obra')
     serializer_class = ObraSerializer
     permission_classes = [PermisoObras]
+
+    # Filtra las obras para que cada supervisor vea y gestione únicamente las que tiene a su cargo.
+    def get_queryset(self):
+        queryset = Obra.objects.select_related(
+            'id_cliente', 'id_tipo_servicio', 'id_supervisor'
+        ).prefetch_related(
+            'detalles__id_articulo__id_unidad_medida'
+        ).all().order_by('-id_obra')
+
+        usuario = self.request.user
+        if usuario and usuario.is_authenticated and getattr(usuario.id_rol, 'nombre', None) == Rol.SUPERVISOR:
+            queryset = queryset.filter(id_supervisor=usuario)
+        return queryset
 
     # Permite que el encargado de Bodega y el Administrador ejecuten la acción de despachar materiales a una obra.
     def check_permissions(self, request):
@@ -65,12 +90,35 @@ class ObraViewSet(viewsets.ModelViewSet):
             registrar_denegacion(request, "Despacho de Materiales a Obra")
             self.permission_denied(request)
         super().check_permissions(request)
+
+    # Entrega la lista de supervisores activos para asignarlos al crear o editar una obra.
+    @action(detail=False, methods=['get'], url_path='supervisores')
+    def supervisores(self, request):
+        lista = Usuario.objects.filter(
+            id_rol__nombre=Rol.SUPERVISOR,
+            is_active=True
+        ).order_by('nombre')
+        datos = [
+            {
+                'id_usuario': u.id_usuario,
+                'nombre': u.nombre,
+                'rut': u.rut,
+                'correo_electronico': u.correo_electronico,
+            }
+            for u in lista
+        ]
+        return Response(datos, status=status.HTTP_200_OK)
         
     def perform_create(self, serializer):
-        nueva_obra = serializer.save()
+        if self.request.user.id_rol.nombre == Rol.SUPERVISOR:
+            nueva_obra = serializer.save(id_supervisor=self.request.user)
+        else:
+            nueva_obra = serializer.save()
+
+        supervisor_txt = nueva_obra.id_supervisor.nombre if nueva_obra.id_supervisor else "Sin asignar"
         detalle = (
             f"Nueva obra #{nueva_obra.id_obra} registrada para {nueva_obra.id_cliente.razon_social} "
-            f"({nueva_obra.id_tipo_servicio.nombre}) | Técnico: {nueva_obra.tecnico_asociado}"
+            f"({nueva_obra.id_tipo_servicio.nombre}) | Supervisor: {supervisor_txt} | Técnico: {nueva_obra.tecnico_asociado}"
         )
         registrar_accion_obra(self.request.user, nueva_obra, 'Registro de Obra', detalle)
 
@@ -78,23 +126,45 @@ class ObraViewSet(viewsets.ModelViewSet):
         obra_previa = self.get_object()
         estado_previo = obra_previa.estado
         tecnico_previo = obra_previa.tecnico_asociado
+        supervisor_previo = obra_previa.id_supervisor_id
 
-        obra_actualizada = serializer.save()
+        if self.request.user.id_rol.nombre == Rol.SUPERVISOR:
+            obra_actualizada = serializer.save(id_supervisor=self.request.user)
+        else:
+            obra_actualizada = serializer.save()
 
         cambios = []
         if estado_previo != obra_actualizada.estado:
             cambios.append(f"estado ({estado_previo} -> {obra_actualizada.estado})")
         if tecnico_previo != obra_actualizada.tecnico_asociado:
             cambios.append(f"técnico ({tecnico_previo} -> {obra_actualizada.tecnico_asociado})")
+        if supervisor_previo != obra_actualizada.id_supervisor_id:
+            nuevo_sup = obra_actualizada.id_supervisor.nombre if obra_actualizada.id_supervisor else "Sin asignar"
+            cambios.append(f"supervisor a {nuevo_sup}")
 
         resumen = ", ".join(cambios) if cambios else "actualización de datos de la obra"
         detalle = f"Obra #{obra_actualizada.id_obra} ({obra_actualizada.id_cliente.razon_social}) : {resumen}"
         registrar_accion_obra(self.request.user, obra_actualizada, 'Modificación de Obra', detalle)
 
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {"detail": "No se puede eliminar esta obra porque ya tiene materiales despachados o registros en el historial. Puede cambiar su estado a Finalizada o Cancelada."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
     # Despacha materiales a la obra descontando stock, guardando en detalle_obra y en el historial.
     @action(detail=True, methods=['post'], url_path='despachar')
     def despachar(self, request, pk=None):
         obra = self.get_object()
+        if obra.estado not in (Obra.EN_PROCESO, 'Activa'):
+            return Response(
+                {"detail": f"No se pueden despachar materiales porque la obra se encuentra en estado '{obra.estado}'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         serializer = DespachoObraInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 

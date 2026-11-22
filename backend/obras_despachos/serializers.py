@@ -3,7 +3,8 @@ from .models import Obra, TipoServicio, DetalleObra
 from catalogo_inventario.models import Articulo
 from usuarios_rbac.validators import validar_texto
 
-# Convierte los tipos de servicio a formato JSON para los selectores.
+
+# Convierte los tipos de servicio para mostrarlos en los selectores.
 class TipoServicioSerializer(serializers.ModelSerializer):
     class Meta:
         model = TipoServicio
@@ -30,7 +31,7 @@ class DetalleObraSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("La cantidad despachada debe ser mayor a cero.")
         return value
 
-# Prepara los datos de la obra vinculando al cliente, el tipo de servicio y los materiales entregados.
+# Prepara los datos de la obra vinculando cliente, supervisor encargado, servicio y materiales.
 class ObraSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source='id_obra', read_only=True)
     codigo = serializers.SerializerMethodField()
@@ -40,6 +41,8 @@ class ObraSerializer(serializers.ModelSerializer):
     cliente = serializers.CharField(source='id_cliente.razon_social', read_only=True)
     cliente_rut = serializers.CharField(source='id_cliente.rut', read_only=True)
     ubicacion = serializers.CharField(source='id_cliente.ciudad', read_only=True)
+    supervisor_nombre = serializers.SerializerMethodField()
+    supervisor_rut = serializers.SerializerMethodField()
     tipo_servicio_nombre = serializers.CharField(source='id_tipo_servicio.nombre', read_only=True)
     detalles = DetalleObraSerializer(many=True, read_only=True)
 
@@ -48,7 +51,8 @@ class ObraSerializer(serializers.ModelSerializer):
         fields = [
             'id_obra', 'id', 'codigo', 'nombre', 'fecha_inicio',
             'id_cliente', 'cliente_nombre', 'cliente_razon_social', 'cliente', 'cliente_rut',
-            'ubicacion', 'tecnico_asociado', 'id_tipo_servicio', 'tipo_servicio_nombre',
+            'ubicacion', 'id_supervisor', 'supervisor_nombre', 'supervisor_rut',
+            'tecnico_asociado', 'id_tipo_servicio', 'tipo_servicio_nombre',
             'estado', 'detalles'
         ]
 
@@ -60,6 +64,16 @@ class ObraSerializer(serializers.ModelSerializer):
         cliente = obj.id_cliente.razon_social if obj.id_cliente else "Cliente"
         return f"Obra #{obj.id_obra} | {servicio} ({cliente})"
 
+    def get_supervisor_nombre(self, obj):
+        if obj.id_supervisor:
+            return obj.id_supervisor.nombre
+        return "Sin asignar"
+
+    def get_supervisor_rut(self, obj):
+        if obj.id_supervisor:
+            return obj.id_supervisor.rut
+        return ""
+
     def validate_tecnico_asociado(self, value):
         if not value or not str(value).strip():
             raise serializers.ValidationError("Debe indicar el nombre del técnico responsable.")
@@ -70,9 +84,7 @@ class ObraSerializer(serializers.ModelSerializer):
         estado = attrs.get('estado', getattr(self.instance, 'estado', 'En proceso'))
         tecnico = attrs.get('tecnico_asociado', getattr(self.instance, 'tecnico_asociado', ''))
         if estado == 'Finalizada' and not str(tecnico).strip():
-            raise serializers.ValidationError({
-                "tecnico_asociado": "No se puede finalizar una obra sin tener un técnico responsable asignado."
-            })
+            raise serializers.ValidationError({"tecnico_asociado": "No se puede finalizar una obra sin tener un técnico responsable asignado."})
         return attrs
 
 # Valida los datos enviados cuando bodega despacha un material hacia una obra.
