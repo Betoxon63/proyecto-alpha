@@ -146,6 +146,16 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Configuración de archivos multimedia y respaldos físicos escaneados
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# Capacidad para recepción de imágenes escaneadas de alta resolución
+DATA_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 52428800  # 50 MB
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Archivo donde se guardan los avisos de seguridad y accesos rechazados.

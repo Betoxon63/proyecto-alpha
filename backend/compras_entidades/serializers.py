@@ -71,7 +71,7 @@ class DetalleFacturaSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DetalleFactura
-        fields = ['id_detalle_factura', 'id_articulo', 'articulo_nombre', 'cantidad', 'precio_unitario']
+        fields = ['id_detalle_factura', 'id_articulo', 'articulo_nombre', 'cantidad', 'precio_unitario', 'descuento_porcentaje']
 
 # Datos generales de la factura recibida de un proveedor.
 class FacturaSerializer(serializers.ModelSerializer):
@@ -84,6 +84,6 @@ class FacturaSerializer(serializers.ModelSerializer):
         fields = [
             'id_factura', 'numero_documento', 'fecha_ingreso',
             'id_proveedor', 'proveedor_nombre', 'proveedor_rut',
-            'observaciones', 'total', 'detalles'
+            'observaciones', 'total', 'detalles', 'imagen_respaldo'
         ]
         

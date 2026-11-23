@@ -33,6 +33,11 @@ export const eliminarProveedor = (id) => api.delete(`/proveedores/${id}/`);
 export const obtenerFacturas = () => api.get('/facturas/');
 export const crearFactura = (datos) => api.post('/facturas/', datos);
 
+// Digitalización inteligente de documentos en papel mediante IA (Gemini API o Ollama Local).
+// Se asigna un timeout de 180s (3 min) para dar margen suficiente a modelos locales en CPU/GPU
+export const digitalizarDocumento = (imagen_b64, motor = 'gemini') =>
+    api.post('/digitalizacion/analizar/', { imagen_b64, motor }, { timeout: 180000 });
+
 // Funciones para la administración de trabajadores y cargos.
 export const obtenerUsuarios = () => api.get('/usuarios/');
 export const crearUsuario = (datos) => api.post('/usuarios/', datos);

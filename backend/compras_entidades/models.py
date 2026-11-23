@@ -42,6 +42,7 @@ class Factura(models.Model):
     id_proveedor = models.ForeignKey(Proveedor, on_delete=models.PROTECT, db_column='id_proveedor')
     observaciones = models.TextField(blank=True, null=True)
     total = models.PositiveIntegerField(default=0)
+    imagen_respaldo = models.TextField(blank=True, null=True, help_text="Ruta o URL del escaneo/foto del documento físico")
 
     class Meta:
         db_table = 'factura'
@@ -52,6 +53,7 @@ class DetalleFactura(models.Model):
     id_factura = models.ForeignKey(Factura, on_delete=models.CASCADE, db_column='id_factura', related_name='detalles')
     cantidad = models.PositiveIntegerField()
     precio_unitario = models.PositiveIntegerField()
+    descuento_porcentaje = models.PositiveIntegerField(default=0)
 
     class Meta:
         db_table = 'detalle_factura'

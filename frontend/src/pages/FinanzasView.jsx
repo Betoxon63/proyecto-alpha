@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Receipt, Building2, CreditCard, Edit2, Lock, Download } from 'lucide-react';
+import { Receipt, Building2, CreditCard, Edit2, Lock, Download, Eye, X } from 'lucide-react';
 import {
     obtenerProveedores,
     actualizarProveedor,
@@ -23,6 +23,16 @@ export default function FinanzasView({
     const [editingCliente, setEditingCliente] = useState(null);
     const [mensaje, setMensaje] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
+    const [modalFotoRespaldo, setModalFotoRespaldo] = useState(null);
+
+    const obtenerUrlMedia = (ruta) => {
+        if (!ruta) return '';
+        if (ruta.startsWith('http://') || ruta.startsWith('https://') || ruta.startsWith('data:')) {
+            return ruta;
+        }
+        const backendRoot = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api').replace(/\/api\/?$/, '');
+        return `${backendRoot}${ruta.startsWith('/') ? '' : '/'}${ruta}`;
+    };
 
     const cargarEntidadesReales = async () => {
         try {
@@ -52,6 +62,7 @@ export default function FinanzasView({
                         iva: ivaFac,
                         total: totalFac,
                         estado: 'Pagada',
+                        imagen_respaldo: f.imagen_respaldo || null
                     };
                 });
                 setFacturasComprasMes(adaptadas);
@@ -224,13 +235,14 @@ export default function FinanzasView({
                                         <th className="finanzas-th-right">Valor Neto</th>
                                         <th className="finanzas-th-right">IVA (19%)</th>
                                         <th className="finanzas-th-right">Total Factura</th>
+                                        <th className="finanzas-th-center">Respaldo Físico</th>
                                         <th className="finanzas-th-center">Estado Pago</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {facturasComprasMes.length === 0 ? (
                                       <tr>
-                                        <td colSpan={8} className='finanzas-empty-row'>
+                                        <td colSpan={9} className='finanzas-empty-row'>
                                           No hay facturas registradas en el sistema.
                                         </td>
                                       </tr>
@@ -249,6 +261,33 @@ export default function FinanzasView({
                                             </td>
                                             <td className="finanzas-td-total">
                                                 ${Number(f.total || 0).toLocaleString('es-CL')}
+                                            </td>
+                                            <td className="finanzas-td-center">
+                                                {f.imagen_respaldo ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setModalFotoRespaldo(f)}
+                                                        style={{
+                                                            background: '#ecfdf5',
+                                                            border: '1px solid #a7f3d0',
+                                                            color: '#065f46',
+                                                            borderRadius: '6px',
+                                                            padding: '4px 8px',
+                                                            fontSize: '11px',
+                                                            fontWeight: 700,
+                                                            cursor: 'pointer',
+                                                            display: 'inline-flex',
+                                                            alignItems: 'center',
+                                                            gap: '4px'
+                                                        }}
+                                                        title="Ver foto o escaneo del documento físico"
+                                                    >
+                                                        <Eye size={12} />
+                                                        <span>Ver Guía</span>
+                                                    </button>
+                                                ) : (
+                                                    <span style={{ color: '#94a3b8', fontSize: '11.5px' }}>Manual</span>
+                                                )}
                                             </td>
                                             <td className="finanzas-td-center">
                                                 <span
@@ -576,6 +615,40 @@ export default function FinanzasView({
                             </div>
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* MODAL PARA VER EL RESPALDO FÍSICO DE LA FACTURA / GUÍA */}
+            {modalFotoRespaldo && (
+                <div className="compras-modal-overlay" style={{ zIndex: 1100 }}>
+                    <div className="compras-modal-card" style={{ maxWidth: '850px', width: '94vw', maxHeight: '92vh', display: 'flex', flexDirection: 'column', borderRadius: '14px', overflow: 'hidden' }}>
+                        <div style={{ background: '#047857', color: '#ffffff', padding: '14px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <Receipt size={22} />
+                                <div>
+                                    <strong style={{ fontSize: '15px', display: 'block' }}>Respaldo Físico - {modalFotoRespaldo.id}</strong>
+                                    <span style={{ fontSize: '12px', opacity: 0.9 }}>
+                                        {modalFotoRespaldo.proveedor} • Fecha: {modalFotoRespaldo.fecha} • Total: ${Number(modalFotoRespaldo.total).toLocaleString('es-CL')}
+                                    </span>
+                                </div>
+                            </div>
+                            <button 
+                                type="button" 
+                                onClick={() => setModalFotoRespaldo(null)} 
+                                style={{ background: 'transparent', border: 'none', color: '#ffffff', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}
+                                title="Cerrar vista previa"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div style={{ padding: '16px', overflowY: 'auto', flex: 1, textAlign: 'center', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <img 
+                                src={obtenerUrlMedia(modalFotoRespaldo.imagen_respaldo)} 
+                                alt={`Respaldo ${modalFotoRespaldo.id}`}
+                                style={{ maxWidth: '100%', maxHeight: '74vh', objectFit: 'contain', borderRadius: '8px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.5)' }} 
+                            />
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
