@@ -1,0 +1,361 @@
+.cardex-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.cardex-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.cardex-title {
+    font-size: 24px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 4px;
+    letter-spacing: -0.5px;
+}
+
+.cardex-subtitle {
+    font-size: 13px;
+    color: #64748b;
+    margin: 0;
+}
+
+.cardex-btn-export {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 9px 16px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #1b5e20;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.cardex-btn-export:hover {
+    background-color: #f0fdf4;
+}
+
+.cardex-banner-append {
+    background-color: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    border-radius: 12px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.cardex-banner-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.cardex-banner-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background-color: #d1fae5;
+    color: #059669;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cardex-banner-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #065f46;
+}
+
+.cardex-banner-desc {
+    font-size: 12px;
+    color: #047857;
+}
+
+.cardex-badge-readonly {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background-color: #ffffff;
+    border: 1px solid #a7f3d0;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #065f46;
+}
+
+.cardex-filters-card {
+    background-color: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    padding: 16px 20px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.cardex-filters-grid {
+    display: grid;
+    grid-template-columns: 1fr 0.8fr 1fr 1.6fr;
+    gap: 14px;
+    align-items: flex-end;
+}
+
+.cardex-filter-label,
+.cardex-filters-label {
+    display: block;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #64748b;
+    margin-bottom: 6px;
+}
+
+.cardex-input-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+.cardex-filter-input,
+.cardex-filter-select {
+    border: none;
+    background: transparent;
+    outline: none;
+    width: 100%;
+    font-size: 12.5px;
+    color: #1e293b;
+    padding: 0;
+}
+
+.cardex-type-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.cardex-type-btn {
+    flex: 1 1 auto;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: none;
+    font-size: 11.5px;
+    font-weight: 700;
+    background-color: #f1f5f9;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.cardex-type-btn.active {
+    background-color: #1b5e20;
+    color: #ffffff;
+}
+
+.cardex-table-card {
+    background-color: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.cardex-table-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.cardex-table-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cardex-table-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.cardex-count-badge {
+    font-size: 11px;
+    background-color: #f1f5f9;
+    color: #475569;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: 700;
+}
+
+.cardex-table-order {
+    font-size: 11.5px;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.cardex-table-scroll {
+    overflow-x: auto;
+}
+
+.cardex-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 12.5px;
+}
+
+.cardex-table thead tr {
+    background-color: #f8fafc;
+    color: #64748b;
+    font-size: 11.5px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.cardex-table th {
+    padding: 12px 16px;
+    font-weight: 700;
+}
+
+.cardex-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.cardex-table tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.cardex-table-empty {
+    padding: 36px;
+    text-align: center;
+    color: #94a3b8;
+}
+
+.cardex-td-id {
+    font-family: monospace;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.cardex-td-date {
+    color: #334155;
+}
+
+.cardex-td-bold {
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.cardex-td-sub {
+    font-size: 11px;
+    color: #64748b;
+}
+
+.cardex-td-destino {
+    font-weight: 600;
+    color: #334155;
+}
+
+.cardex-qty {
+    text-align: right;
+    font-weight: 800;
+    font-family: monospace;
+}
+
+.cardex-qty.entrada {
+    color: #15803d;
+}
+
+.cardex-qty.salida {
+    color: #b45309;
+}
+
+.cardex-qty.merma {
+    color: #b91c1c;
+}
+
+.cardex-mov-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.cardex-mov-badge.entrada {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.cardex-mov-badge.salida {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.cardex-mov-badge.merma {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.cardex-doc-chip {
+    background-color: #f1f5f9;
+    color: #475569;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.cardex-footer-note {
+    padding: 12px 20px;
+    background-color: #f8fafc;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11.5px;
+    color: #64748b;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.cardex-footer-lock {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+@media (max-width: 1100px) {
+    .cardex-filters-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
