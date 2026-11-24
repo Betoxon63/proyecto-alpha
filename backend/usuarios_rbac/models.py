@@ -1,7 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 
-# Cargos disponibles dentro de la empresa.
+
+# Define los cargos para los trabajadores de FYAG.
 class Rol(models.Model):
     ADMIN = 'administracion'
     SOPORTE_TI = 'soporte_ti'
@@ -26,23 +27,28 @@ class Rol(models.Model):
     def __str__(self):
         return self.nombre
 
-# Funciones encargadas de crear cuentas de trabajadores en el sistema.
+
+# Función encargadas de crear cuentas de trabajadores en el sistema.
 class UsuarioManager(BaseUserManager):
+    # Crea una cuenta normal de trabajador.
     def create_user(self, correo_electronico, nombre, rut, password=None, **extra_fields):
         if not correo_electronico:
             raise ValueError('El trabajador debe tener un correo electrónico.')
-        correo_electronico = self.normalize_email(correo_electronico)
+
+        # Convierte el correo a minúsculas.
+        correo_electronico = self.normalize_email(correo_electronico).strip().lower()
         user = self.model(
             correo_electronico=correo_electronico,
             nombre=nombre,
             rut=rut,
             **extra_fields
         )
-        # Protege la contraseña antes de guardarla.
+        # Encripta la contraseña antes de guardarla.
         user.set_password(password)
         user.save(using=self._db)
         return user
 
+    # Crea una cuenta con permisos totales desde la consola de Django, asignándole el cargo de Administrador.
     def create_superuser(self, correo_electronico, nombre, rut, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
@@ -50,7 +56,8 @@ class UsuarioManager(BaseUserManager):
         extra_fields.setdefault('id_rol', rol_admin)
         return self.create_user(correo_electronico, nombre, rut, password, **extra_fields)
 
-# Datos personales y de contacto de cada trabajador.
+
+# Tabla principal de trabajadores. Usa el correo electrónico en lugar de un nombre de usuario tradicional.
 class Usuario(AbstractBaseUser, PermissionsMixin):
     id_usuario = models.AutoField(primary_key=True)
     nombre = models.TextField()
@@ -64,6 +71,7 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
 
     objects = UsuarioManager()
 
+    # Define el correo electrónico como el dato principal para iniciar sesión.
     USERNAME_FIELD = 'correo_electronico'
     REQUIRED_FIELDS = ['nombre', 'rut']
 

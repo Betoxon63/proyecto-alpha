@@ -1,13 +1,10 @@
-import api, {
-    setAccessToken,
-    setRefreshTokenCookie,
-    getRefreshTokenCookie,
-    clearAuthTokens,
-} from './axiosConfig';
+import api, { setAccessToken, setRefreshTokenCookie, getRefreshTokenCookie, clearAuthTokens, } from './axiosConfig';
 
+// Tiempo máximo sin uso antes de cerrar la sesión automáticamente.
 const TIEMPO_INACTIVIDAD = 15 * 60 *1000;
 let temporizadorInactividad = null;
 
+// Envía el correo y la contraseña al servidor, guarda los permisos de sesión y devuelve los datos del trabajador.
 export const loginUsuario = async (correo_electronico, password) => {
     const response = await api.post('/token/', { correo_electronico, password });
     const { access, refresh, usuario } = response.data;
@@ -19,6 +16,7 @@ export const loginUsuario = async (correo_electronico, password) => {
     return usuario;
 };
 
+// Avisa al servidor para invalidar la sesión actual y borra todos los datos locales del navegador.
 export const logoutUsuario = async () => {
     const refresh = getRefreshTokenCookie();
     if (refresh) {
@@ -32,11 +30,19 @@ export const logoutUsuario = async () => {
     clearAuthTokens();
 };
 
+// Recupera los datos del trabajador conectado mientras la pestaña siga abierta.
 export const obtenerUsuarioActual = () => {
     const data = sessionStorage.getItem('alpha_usuario');
-    return data ? JSON.parse(data) : null;
+    if (!data) return null;
+    try {
+        return JSON.parse(data);
+    } catch {
+        sessionStorage.removeItem('alpha_usuario');
+        return null;
+    }
 };
 
+// Vigila el movimiento del mouse, teclado o pantalla táctil para cerrar la sesión tras 15 minutos sin uso.
 export const iniciarMonitorInactividad = (onTimeoutCallback) => {
     const reiniciarTemporizador = () => {
         if (temporizadorInactividad) clearTimeout(temporizadorInactividad);
@@ -56,6 +62,7 @@ export const iniciarMonitorInactividad = (onTimeoutCallback) => {
     };
 };
 
+// Detiene el contador de inactividad cuando el trabajador cierra sesión manualmente.
 export const detenerMonitorInactividad = () => {
     if (temporizadorInactividad) clearTimeout(temporizadorInactividad);
 };

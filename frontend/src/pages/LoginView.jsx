@@ -35,7 +35,7 @@ const LoginView = ({ onLoginSuccess, mensajeInactividad }) => {
         e.preventDefault();
         setErrorMsg('');
 
-        const correoLimpio = correo.trim();
+        const correoLimpio = correo.trim().toLowerCase();
         const regexCorreo = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
         if (!correoLimpio || !password) {
@@ -65,7 +65,10 @@ const LoginView = ({ onLoginSuccess, mensajeInactividad }) => {
 
                 if (status === 429) {
                     setCuentaBloqueada(true);
-                    setErrorMsg(detalle || 'Se superó el límite de intentos permitidos. Por seguridad, espere 10 minutos antes de volver a intentar.');
+                    setErrorMsg(
+                        detalle || 
+                            'Se superó el límite de intentos permitidos. Por seguridad, espere 10 minutos antes de volver a intentar.'
+                    );
                 } else if (status === 401) {
                     setCuentaBloqueada(false);
                     setErrorMsg(detalle || 'Correo o contraseña incorrectos. Revise sus datos e intente nuevamente.');
@@ -110,6 +113,7 @@ const LoginView = ({ onLoginSuccess, mensajeInactividad }) => {
                         <input
                             type="email"
                             className='login-input'
+                            maxLength={80}
                             value={correo}
                             onChange={(e) => setCorreo(e.target.value)}
                             placeholder='nombre@fyag.cl'
@@ -122,6 +126,7 @@ const LoginView = ({ onLoginSuccess, mensajeInactividad }) => {
                         <input
                             type="password"
                             className='login-input'
+                            maxLength={64}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder='********'

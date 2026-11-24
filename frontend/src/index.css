@@ -17,6 +17,8 @@
     --color-advertencia: #d97706;
     --sombra-suave: 0 1px 3px rgba(0, 0, 0, 0.04);
     --sombra-modal: 0 25px 50px -12px rgba(0, 0, 0, 0.3);
+    --sidebar-ancho-colapsada: 74px;
+    --sidebar-ancho-expandida: 256px;
 }
 
 html {
@@ -35,7 +37,26 @@ body {
     color: var(--color-texto);
 }
 
-/* Contenedores y estructura general */
+/* Estructura principal que separa la barra lateral del área de trabajo */
+.app-shell {
+    min-height: 100vh;
+    width: 100%;
+}
+
+.app-main {
+    min-height: 100vh;
+    transition: margin-left 0.25s ease;
+}
+
+.app-main.sidebar-colapsada {
+    margin-left: var(--sidebar-ancho-colapsada);
+}
+
+.app-main.sidebar-expandida {
+    margin-left: var(--sidebar-ancho-expandida);
+}
+
+/* Contenedores y estructura general de las pantallas */
 .contenedor-vista {
     max-width: 1280px;
     margin: 0 auto;
@@ -205,6 +226,12 @@ select {
 }
 
 @media (max-width: 900px) {
+    .app-main.sidebar-colapsada,
+    .app-main.sidebar-expandida {
+        margin-left: 0;
+        padding-top: 56px;
+    }
+
     .panel-formularios {
         grid-template-columns: 1fr;
     }

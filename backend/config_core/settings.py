@@ -4,20 +4,32 @@ from datetime import timedelta
 import dj_database_url
 from dotenv import load_dotenv
 
-# Carga los datos de configuración guardados en el archivo .env.
+# Carga las variables privadas guardadas en el archivo .env (contraseña, clave secreta y direcciones).
 load_dotenv()
 
-# Ruta inicial del proyecto.
+# Carpeta principal donde se encuentra el proyecto del servidor.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Clave de seguridad y modo de prueba.
-SECRET_KEY = os.environ.get('SECRET_KEY', 'clave-secreta-desarrollo-proyecto-alpha-fyag-2026')
+# Indica si el servidor está en modo pruebas locales o en funcionamiento real.
 DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
-# Direcciones permitidas para conectarse al servidor.
-ALLOWED_HOSTS = ['*']
+# Clave secreta que usa Django para firmar las sesiones.
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'clave-secreta-desarrollo-proyecto-alpha-fyag-2026'
+    else:
+        raise ValueError("Falta configurar la variable de entorno SECRET_KEY en el servidor.")
 
-# Módulos activos del sistema.
+# Lista de direcciones web autorizadas para comunicarse con este servidor.
+hosts_env = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1')
+ALLOWED_HOSTS = [host.strip() for host in hosts_env.split(',') if host.strip()]
+
+render_host = os.environ.get('RENDER_EXTERNAL_HOSTNAME')
+if render_host and render_host not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(render_host)
+
+# Aplicaciones de Django, librerías externas y módulos propios del sistema FYAG.
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -25,12 +37,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # Herramientas externas.
+    # Herramientas de API, sesiones por token y permisos entre servidores.
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
-    # Módulos del sistema FYAG.
+    # Módulos del sistema logístico FYAG.
     'usuarios_rbac',
     'catalogo_inventario',
     'compras_entidades',
@@ -38,7 +50,7 @@ INSTALLED_APPS = [
     'cardex_auditoria',
 ]
 
-# Filtros de seguridad para las peticiones que llegan al servidor.
+# Capas intermedias de seguridad por las que pasa cada petición antes de llegar a las vistas.
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -75,10 +87,11 @@ DATABASES = {
     'default': dj_database_url.config(
         default=os.environ.get('DATABASE_URL'),
         conn_max_age=0,
+        ssl_require=not DEBUG
     )
 }
 
-# Memoria temporal para contar intentos fallidos el iniciar sesión.
+# Memoria temporal para contar intentos fallidos al iniciar sesión.
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
@@ -105,6 +118,11 @@ REST_FRAMEWORK = {
     )
 }
 
+if not DEBUG:
+    REST_FRAMEWORK['DEFAULT_RENDERER_CLASSES'] = (
+        'rest_framework.renderers.JSONRenderer',
+    )
+
 # Duración de la sesión activa (15 minutos sin uso y 8 horas de jornada).
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
@@ -124,6 +142,11 @@ CORS_ALLOW_CREDENTIALS = True
 cors_origins_env = os.environ.get('CORS_ALLOWED_ORIGINS', '')
 if cors_origins_env:
     CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins_env.split(',') if origin.strip()]
+else:
+    CORS_ALLOWED_ORIGINS = [
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+    ]
 
 # Protección adicional para el navegador.
 SECURE_CONTENT_TYPE_NOSNIFF = True

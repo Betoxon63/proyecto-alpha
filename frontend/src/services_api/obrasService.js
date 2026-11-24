@@ -1,42 +1,52 @@
 import api from './axiosConfig';
 
-const CARDEX_LOCAL_KEY = 'fyag_cardex_alpha'
-
-// Obtiene las obras registradas.
+// Obtiene las obras registradas (el servidor filtra automáticamente las obras propias si es Supervisor).
 export const obtenerObras = async () => {
-    try {
-        const respuesta = await api.get('/obras/');
-        return Array.isArray(respuesta.data) ? respuesta.data : [];
-    } catch {
-        return [];
-    }
+    const respuesta = await api.get('/obras/');
+    return Array.isArray(respuesta.data) ? respuesta.data : [];
 };
 
-// Registra una nueva obra en el sistema.
+// Registra una nueva obra o proyecto en el sistema.
 export const crearObra = async (datosObra) => {
     const respuesta = await api.post('/obras/', datosObra);
     return respuesta.data;
 };
 
-// Actualiza los datos o el estado de una obra existente.
+// Actualiza los datos o cambia el estado de una obra existente.
 export const actualizarObra = async (idObra, datosObra) => {
     const respuesta = await api.put(`/obras/${idObra}/`, datosObra);
     return respuesta.data;
 };
 
-// Elimina una obra si no tiene movimientos de materiales asociados.
+// Elimina una obra (el servidor impide borrarla si ya tiene despachos de materiales asociados).
 export const eliminarObra = async (idObra) => {
     const respuesta = await api.delete(`/obras/${idObra}/`);
     return respuesta.data;
 };
 
-// Obtiene las 8 clasificaciones oficiales de tipos de servicio.
+// Obtiene la lista oficial de tipos de servicio para clasificar las obras.
 export const obtenerTiposServicio = async () => {
     const respuesta = await api.get('/tipos-servicio/');
     return Array.isArray(respuesta.data) ? respuesta.data : [];
 };
 
-// Obtiene los supervisores activos para asignarlos al crear o editar una obra.
+// Funciones exclusivas de Administración para gestionar la lista paramétrica de tipos de servicio.
+export const crearTipoServicio = async (datos) => {
+    const respuesta = await api.post('/tipos-servicio/', datos);
+    return respuesta.data;
+};
+
+export const actualizarTipoServicio = async (idTipo, datos) => {
+    const respuesta = await api.put(`/tipos-servicio/${idTipo}/`, datos);
+    return respuesta.data;
+};
+
+export const eliminarTipoServicio = async (idTipo) => {
+    const respuesta = await api.delete(`/tipos-servicio/${idTipo}/`);
+    return respuesta.data;
+};
+
+// Obtiene la lista de supervisores activos para asignarlos al crear o editar una obra.
 export const obtenerSupervisores = async () => {
     try {
         const respuesta = await api.get('/obras/supervisores/');
@@ -46,7 +56,7 @@ export const obtenerSupervisores = async () => {
     }
 };
 
-// Objeto compatible con la vista Obras.jsx.
+// Objeto agrupado mantenido por compatibilidad con la vista Obras.jsx.
 export const obraService = {
     getAll: obtenerObras,
     create: crearObra,
@@ -56,88 +66,34 @@ export const obraService = {
     getSupervisores: obtenerSupervisores,
 };
 
-// Consulta el historial general de movimientos desde el servidor.
+// Consulta directamente desde el servidor el historial de movimientos permitido para el cargo actual.
 export const obtenerCardex = async () => {
-    try {
-        const respuesta = await api.get('/cardex/');
-        if (Array.isArray(respuesta.data)) {
-            localStorage.setItem(CARDEX_LOCAL_KEY, JSON.stringify(respuesta.data));
-            return respuesta.data;
-        }
-    } catch {
-        // Si ocurre un error de red, utiliza el respaldo sincronizado.
-    }
-
-    const localData = localStorage.getItem(CARDEX_LOCAL_KEY);
-    if (localData) {
-        try {
-            return JSON.parse(localData);
-        } catch {
-            return [];
-        }
-    }
-    return [];
+    const respuesta = await api.get('/cardex/');
+    return Array.isArray(respuesta.data) ? respuesta.data : [];
 };
 
-// Registra un nuevo movimiento de material en el historial vinculándolo a la obra.
+// Registra un movimiento en el historial directamente en el servidor (propaga cualquier error real).
 export const crearMovimientoCardex = async (datosMovimiento) => {
-    let movimientoCreado = null;
-
-    try {
-        const respuesta = await api.post('/cardex/', datosMovimiento);
-        movimientoCreado = respuesta.data;
-    } catch {
-        // Mantiene respaldo local si falta algún identificador opcional.
-    }
-
-    const nuevoRegistro = {
-        id_movimiento: movimientoCreado?.id_movimiento
-            ? movimientoCreado.id_movimiento
-            : datosMovimiento.id_movimiento || `REG-${Math.floor(10000 + Math.random() * 90000)}`,
-        fecha_hora:
-            movimientoCreado?.fecha_hora ||
-            datosMovimiento.fecha_hora ||
-            new Date().toISOString().replace('T', ' ').substring(0, 16),
-        usuario_responsable: datosMovimiento.usuario_responsable || 'Trabajador',
-        cargo: datosMovimiento.cargo || 'Bodega',
-        articulo_nombre: 
-            datosMovimiento.articulo_nombre || `Material #${datosMovimiento.id_articulo || ''}`,
-        articulo_codigo:
-            datosMovimiento.articulo_codigo || `MAT-${datosMovimiento.id_articulo || ''}`,
-        articulo_detalle: datosMovimiento.articulo_detalle || 'Bodega Central',
-        cantidad: Number(datosMovimiento.cantidad),
-        unidad_medida: datosMovimiento.unidad_medida || 'un',
-        tipo_movimiento:
-            datosMovimiento.tipo_movimiento ||
-            (Number(datosMovimiento.cantidad) >= 0 ? 'Entrada' : 'Salida'),
-        id_obra: datosMovimiento.id_obra || null,
-        obra_destino: datosMovimiento.obra_destino || 'Bodega Central',
-        documento_respaldo: datosMovimiento.documento_respaldo || datosMovimiento.motivo || 'Sin detalle',
-        motivo: datosMovimiento.motivo || 'Movimiento de bodega',
-    };
-
-    const guardados = await obtenerCardex();
-    const actualizados = [nuevoRegistro, ...guardados];
-    localStorage.setItem(CARDEX_LOCAL_KEY, JSON.stringify(actualizados));
-    return movimientoCreado || nuevoRegistro;
+    const respuesta = await api.post('/cardex/', datosMovimiento);
+    return respuesta.data;
 };
 
-// Alias de compatibilidad para componentes de las tandas anteriores.
+// Alias mantenido por compatibilidad con otros componentes.
 export const registrarMovimientoCardex = crearMovimientoCardex;
 
-// Despacha materiales desde bodega hacia una obra en proceso.
+// Despacha materiales desde bodega hacia una obra que se encuentre en estado "En proceso".
 export const despacharObra = async (idObra, datosDespacho) => {
     const respuesta = await api.post(`/obras/${idObra}/despachar/`, datosDespacho);
     return respuesta.data;
 };
 
-// Registra una merma justificada descontando stock en el servidor.
+// Registra una merma justificada descontando las unidades en el servidor.
 export const registrarMerma = async (datosMerma) => {
     const respuesta = await api.post('/cardex/registrar-merma/', datosMerma);
     return respuesta.data;
 };
 
-// Registra una devolución desde obra o hacia proveedor.
+// Registra una devolución de material desde una obra hacia bodega o hacia un proveedor.
 export const registrarDevolucion = async (datosDevolucion) => {
     const respuesta = await api.post('/cardex/registrar-devolucion/', datosDevolucion);
     return respuesta.data;

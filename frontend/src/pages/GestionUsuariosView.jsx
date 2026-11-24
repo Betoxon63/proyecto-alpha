@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, Search, ShieldCheck, Trash2, Edit2 } from 'lucide-react';
+import { UserPlus, Search, ShieldCheck, Trash2, Edit2, Lock } from 'lucide-react';
 import { obtenerUsuarios, crearUsuario, actualizarUsuario, eliminarUsuario, obtenerRoles } from '../services_api/inventarioService';
+import { obtenerUsuarioActual } from '../services_api/authService';
 import '../styles/GestionUsuariosView.css'
+
+// Dominio corporativo obligatorio para todas las cuentas de la empresa.
+const DOMINIO_CORREO = '@fyag.cl';
 
 // Nombres claros de los cargos para mostrar en pantalla.
 const ETIQUETAS_ROL = {
@@ -21,7 +25,7 @@ const CLASE_BADGE_ROL = {
     supervisor_obra: 'usuarios-role-badge supervisor',
 };
 
-// Agrega puntos y guion al RUT.
+// Agrega puntos y guion al RUT solo de forma visual.
 export const formatearRutVisual = (valor = '') => {
     const limpio = String(valor).replace(/[^0-9kK]/g, '').toUpperCase().slice(0, 9);
     if (limpio.length <= 1) return limpio;
@@ -38,17 +42,58 @@ export const limpiarRutParaGuardar = (valor = '') => {
     return `${limpio.slice(0, -1)}-${limpio.slice(-1)}`;
 };
 
+// Limpia el nombre de correo permitiendo solo letras, números, puntos, guiones y guion bajo.
+const limpiarNombreCorreo = (valor = '') => {
+    const sinDominio = String(valor).split('@')[0];
+    return sinDominio.toLowerCase().replace(/[^a-z0-9._-]/g, '');
+};
+
+// Extrae únicamente los 8 dígitos finales.
+const extraerOchoDigitosCelular = (valor = '') => {
+    let digitos = String(valor || '').replace(/\D/g, '');
+    if (digitos.startsWith('569') && digitos.length > 8) {
+        digitos = digitos.slice(3);
+    } else if (digitos.startsWith('56') && digitos.length > 9) {
+        digitos = digitos.slice(2);
+    }
+    if (digitos.startsWith('9') && digitos.length > 8) {
+        digitos = digitos.slice(1);
+    }
+    return digitos.slice(0, 8);
+};
+
+// Telefono formateado con espacios.
+const formatearDigitosInput = (valor = '') => {
+    const digitos = extraerOchoDigitosCelular(valor);
+    if (digitos.length <= 4) return digitos;
+    return `${digitos.slice(0, 4)} ${digitos.slice(4)}`;
+};
+
+// Muestra el teléfono completo en la tabla con el formato oficial chileno.
+export const formatearTelefonoVisual = (valor) => {
+    if (!valor) return '-';
+    const digitos = extraerOchoDigitosCelular(valor);
+    if (digitos.length === 0) return '-';
+    if (digitos.length <= 4) return `+56 9 ${digitos}`;
+    return `+56 9 ${digitos.slice(0, 4)} ${digitos.slice(4)}`;
+}
+
 const estadoInicialFormulario = {
     nombre: '',
     rut: '',
-    correo_electronico: '',
+    correo_usuario: '',
     password: '',
     telefono: '',
     id_rol: '',
     is_active: true,
 };
 
-export default function GestionUsuariosView() {
+// Pantalla principal para listar, registrar, editar y eliminar cuentas del personal.
+export default function GestionUsuariosView({ usuarioActual }) {
+    const sesion = usuarioActual || obtenerUsuarioActual();
+    const esAdmin = sesion?.rol === 'administracion';
+    const esSoporte = sesion?.rol === 'soporte_ti';
+
     const [usuarios, setUsuarios] = useState([]);
     const [roles, setRoles] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -59,12 +104,15 @@ export default function GestionUsuariosView() {
     const [errorMsg, setErrorMsg] = useState('');
     const [exitoMsg, setExitoMsg] = useState('');
 
-    // Obtiene la lista actualizada de trabajadores y cargos desde el servidor.
+    // Obtiene la lista actualizada de trabajadores y cargos disponibles desde el servidor.
     const cargarDatos = async () => {
         setCargando(true);
         setErrorMsg('');
         try {
-            const [resUsuarios, resRoles] = await Promise.all([ obtenerUsuarios(), obtenerRoles(), ]);
+            const [resUsuarios, resRoles] = await Promise.all([
+                obtenerUsuarios(),
+                obtenerRoles(),
+            ]);
             setUsuarios(resUsuarios.data);
             setRoles(resRoles.data);
             if (resRoles.data.length > 0 && !formUsuario.id_rol) {
@@ -85,7 +133,10 @@ export default function GestionUsuariosView() {
     const abrirModalCrear = () => {
         setEditandoId(null);
         setErrorMsg('');
-        setFormUsuario({ ...estadoInicialFormulario, id_rol: roles[0]?.id_rol || '', });
+        setFormUsuario({ 
+            ...estadoInicialFormulario,
+            id_rol: roles[0]?.id_rol || '',
+        });
         setShowModal(true);
     };
 
@@ -96,9 +147,9 @@ export default function GestionUsuariosView() {
         setFormUsuario({
             nombre: usuario.nombre || '',
             rut: formatearRutVisual(usuario.rut || ''),
-            correo_electronico: usuario.correo_electronico || '',
+            correo_usuario: limpiarNombreCorreo(usuario.correo_electronico || ''),
             password: '',
-            telefono: usuario.telefono ? String(usuario.telefono) : '',
+            telefono: usuario.telefono ? formatearDigitosInput(usuario.telefono) : '',
             id_rol: usuario.id_rol || '',
             is_active: usuario.is_active !== false,
         });
@@ -111,12 +162,36 @@ export default function GestionUsuariosView() {
         setErrorMsg('');
         setExitoMsg('');
 
-        // Prepara los datos limpiando el RUT.
+        const nombreLimpio = formUsuario.nombre.trim();
+        if (nombreLimpio.length < 3 || nombreLimpio.length > 80) {
+            setErrorMsg('El nombre completo debe tener entre 3 y 80 caracteres.');
+            return;
+        }
+
+        const nombreCorreo = limpiarNombreCorreo(formUsuario.correo_usuario);
+        if (nombreCorreo.length < 2 || nombreCorreo.length > 40) {
+            setErrorMsg('El nombre del correo debe tener entre 2 y 40 caracteres.');
+            return;
+        }
+
+        if (formUsuario.password && formUsuario.password.length > 64) {
+            setErrorMsg('La contraseña no puede superar los 64 caracteres.');
+            return;
+        }
+
+        // Si se escribió un teléfono, comprueba que estén completos los 8 digítos después de +56 9.
+        const digitosTelefono = extraerOchoDigitosCelular(formUsuario.telefono);
+        if (digitosTelefono.length > 0 && digitosTelefono.length !== 8) {
+            setErrorMsg('Ingrese un número de teléfono válido.');
+            return;
+        }
+
+        // Prepara los datos.
         const datosEnviar = {
-            nombre: formUsuario.nombre.trim(),
+            nombre: nombreLimpio,
             rut: limpiarRutParaGuardar(formUsuario.rut),
-            correo_electronico: formUsuario.correo_electronico.trim(),
-            telefono: formUsuario.telefono ? Number(formUsuario.telefono) : null,
+            correo_electronico: `${nombreCorreo}${DOMINIO_CORREO}`,
+            telefono: digitosTelefono.length === 8 ? Number(`9${digitosTelefono}`) : null,
             id_rol: Number(formUsuario.id_rol),
             is_active: formUsuario.is_active,
         };
@@ -143,7 +218,7 @@ export default function GestionUsuariosView() {
                 const detalle = Object.values(dataErr).flat().join(' ');
                 setErrorMsg(detalle);
             } else {
-                setErrorMsg('No se pudieron guardar los datos. Revise que el RUT sea válido.');
+                setErrorMsg('No se pudieron guardar los datos. Revise que el RUT y el correo sean válidos.');
             }
         }
     };
@@ -157,8 +232,12 @@ export default function GestionUsuariosView() {
             await eliminarUsuario(idUsuario);
             setExitoMsg('Cuenta de trabajador eliminada correctamente.');
             await cargarDatos();
-        } catch {
-            setErrorMsg('No se puede eliminar a este trabajador porque ya tiene movimientos registrados en el historial. Puede desactivar su cuenta desde el botón Editar.');
+        } catch (err) {
+            const detalleServidor = err.response?.data?.detail;
+            setErrorMsg(
+                detalleServidor ||
+                    'No se puede eliminar a este trabajador porque ya tiene movimientos registrados en el historial. Puede desactivar su cuenta desde el botón Editar.'
+            );
         }
     };
 
@@ -167,21 +246,28 @@ export default function GestionUsuariosView() {
         const q = searchTerm.toLowerCase();
         const rolEtiqueta = (ETIQUETAS_ROL[u.rol_nombre] || u.rol_nombre || '').toLowerCase();
         const rutConPuntos = formatearRutVisual(u.rut).toLowerCase();
+        const telefonoFormateado = formatearTelefonoVisual(u.telefono).toLowerCase();
         return (
             u.nombre?.toLowerCase().includes(q) ||
             u.rut?.toLowerCase().includes(q) ||
             rutConPuntos.includes(q) ||
             u.correo_electronico?.toLowerCase().includes(q) ||
+            telefonoFormateado.includes(q) ||
             rolEtiqueta.includes(q)
         );
     });
+
+    // Bloquea la edición de una cuenta propia.
+    const editandoPropioSoporte = esSoporte && editandoId === sesion?.id_usuario;
 
     return (
         <div className="usuarios-container">
             <div className="usuarios-header">
                 <div>
                     <h1 className="usuarios-title">Personal y Cuentas de Acceso</h1>
-                    <p className="usuarios-subtitle">Registro de trabajadores, corrección de datos y asignación de cargos en la empresa</p>
+                    <p className="usuarios-subtitle">
+                        Registro de trabajadores, corrección de datos y asignación de cargos en la empresa
+                    </p>
                 </div>
 
                 <button type="button" onClick={abrirModalCrear} className="usuarios-btn-add">
@@ -193,7 +279,7 @@ export default function GestionUsuariosView() {
             {exitoMsg && <div className="alerta-exito">{exitoMsg}</div>}
             {errorMsg && !showModal && <div className="alerta-error">{errorMsg}</div>}
 
-            {/* Resumen de lo que puede hacer cada cargo */}
+            {/* Resumen de las atribuciones vigentes de cada cargo */}
             <div className="usuarios-rbac-card">
                 <div className="usuarios-rbac-title">
                     <ShieldCheck size={18} color="#1b5e20" />
@@ -204,7 +290,7 @@ export default function GestionUsuariosView() {
                     <div className="usuarios-rbac-item">
                         <div className="usuarios-rbac-role">Administrador General</div>
                         <div className="usuarios-rbac-scope admin">Control Total</div>
-                        <div className="usuarios-rbac-desc">Acceso a todas las áreas, personal e historial</div>
+                        <div className="usuarios-rbac-desc">Acceso completo a bodega, obras, finanzas y personal</div>
                     </div>
 
                     <div className="usuarios-rbac-item">
@@ -228,7 +314,7 @@ export default function GestionUsuariosView() {
                     <div className="usuarios-rbac-item">
                         <div className="usuarios-rbac-role">Supervisor de Obra</div>
                         <div className="usuarios-rbac-scope supervisor">Consulta en Terreno</div>
-                        <div className="usuarios-rbac-desc">Revisión de stock disponible y recepción en obra</div>
+                        <div className="usuarios-rbac-desc">Crea y gestiona sus obras, consulta stock y firma recepciones</div>
                     </div>
                 </div>
             </div>
@@ -240,7 +326,8 @@ export default function GestionUsuariosView() {
                         <Search size={15} color="#64748b" />
                         <input
                             type="text"
-                            placeholder="Buscar por nombre, RUT, correo o cargo..."
+                            maxLength={80}
+                            placeholder="Buscar por nombre, RUT, correo, teléfono o cargo..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="usuarios-search-input"
@@ -277,48 +364,67 @@ export default function GestionUsuariosView() {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredUsuarios.map((u) => (
-                                    <tr key={u.id_usuario}>
-                                        <td className="usuarios-td-name">{u.nombre}</td>
-                                        <td className="usuarios-td-rut">{formatearRutVisual(u.rut)}</td>
-                                        <td className="usuarios-td-email">{u.correo_electronico}</td>
-                                        <td className="usuarios-td-phone">{u.telefono || '-'}</td>
-                                        <td>
-                                            <span className={CLASE_BADGE_ROL[u.rol_nombre] || 'usuarios-role-badge'}>
-                                                {ETIQUETAS_ROL[u.rol_nombre] || u.rol_nombre}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span className={u.is_active ? 'usuarios-status-active' : 'usuarios-status-inactive'}>
-                                                <span className={u.is_active ? 'usuarios-status-dot' : 'usuarios-status-dot inactive'}></span>
-                                                {u.is_active ? 'Activo' : 'Inactivo'}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div className="usuarios-actions-cell">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => abrirModalEditar(u)}
-                                                    className="usuarios-btn-edit"
-                                                    title="Modificar datos del trabajador"
-                                                >
-                                                    <Edit2 size={14} />
-                                                    <span>Editar</span>
-                                                </button>
+                                filteredUsuarios.map((u) => {
+                                    const esCuentaAdmin = u.rol_nombre === 'administracion';
+                                    const esPropiaCuenta = u.id_usuario === sesion?.id_usuario;
+                                    const puedeEditar = esAdmin || (esSoporte && !esCuentaAdmin);
+                                    const puedeEliminar = esAdmin && !esPropiaCuenta;
 
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleEliminarUsuario(u.id_usuario, u.nombre)}
-                                                    className="usuarios-btn-delete"
-                                                    title="Eliminar cuenta"
-                                                >
-                                                    <Trash2 size={14} />
-                                                    <span>Eliminar</span>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
+                                    return (
+                                        <tr key={u.id_usuario}>
+                                            <td className="usuarios-td-name">{u.nombre}</td>
+                                            <td className="usuarios-td-rut">{formatearRutVisual(u.rut)}</td>
+                                            <td className="usuarios-td-email">{u.correo_electronico}</td>
+                                            <td className="usuarios-td-phone">{formatearTelefonoVisual(u.telefono)}</td>
+                                            <td>
+                                                <span className={CLASE_BADGE_ROL[u.rol_nombre] || 'usuarios-role-badge'}>
+                                                    {ETIQUETAS_ROL[u.rol_nombre] || u.rol_nombre}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span className={u.is_active ? 'usuarios-status-active' : 'usuarios-status-inactive'}>
+                                                    <span className={u.is_active ? 'usuarios-status-dot' : 'usuarios-status-dot inactive'}></span>
+                                                        {u.is_active ? 'Activo' : 'Inactivo'}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <div className="usuarios-actions-cell">
+                                                    {puedeEditar ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => abrirModalEditar(u)}
+                                                            className="usuarios-btn-edit"
+                                                            title="Modificar datos del trabajador"
+                                                        >
+                                                            <Edit2 size={14} />
+                                                            <span>Editar</span>
+                                                        </button>
+                                                    ) : (
+                                                        <span
+                                                            className="usuarios-protected-badge"
+                                                            title="Solo Administración puede modificar cuentas de Administrador"
+                                                        >
+                                                            <Lock size={12} />
+                                                            <span>Solo Admin</span>
+                                                        </span>
+                                                    )}
+
+                                                    {puedeEliminar && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleEliminarUsuario(u.id_usuario, u.nombre)}
+                                                            className="usuarios-btn-delete"
+                                                            title="Eliminar Cuenta"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                            <span>Eliminar</span>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>
@@ -344,6 +450,8 @@ export default function GestionUsuariosView() {
                                 <input
                                     type="text"
                                     required
+                                    minLength={3}
+                                    maxLength={80}
                                     placeholder="Ej: Francisco Palma"
                                     value={formUsuario.nombre}
                                     onChange={(e) => setFormUsuario({ ...formUsuario, nombre: e.target.value})}
@@ -356,6 +464,7 @@ export default function GestionUsuariosView() {
                                 <input
                                     type="text"
                                     required
+                                    maxLength={12}
                                     placeholder="Ej: 12.345.678-9"
                                     value={formUsuario.rut}
                                     onChange={(e) => setFormUsuario({ ...formUsuario, rut: formatearRutVisual(e.target.value), })}
@@ -365,14 +474,22 @@ export default function GestionUsuariosView() {
 
                             <div className="usuarios-form-group">
                                 <label className="usuarios-form-label">Correo Electrónico</label>
-                                <input
-                                    type="email"
-                                    required
-                                    placeholder="nombre@fyag.cl"
-                                    value={formUsuario.correo_electronico}
-                                    onChange={(e) => setFormUsuario({ ...formUsuario, correo_electronico: e.target.value})}
-                                    className="usuarios-form-input"
-                                />
+                                <div className="usuarios-input-addon">
+                                    <input
+                                        type="text"
+                                        required
+                                        minLength={2}
+                                        maxLength={40}
+                                        placeholder="Ej: fpalma"
+                                        value={formUsuario.correo_usuario}
+                                        onChange={(e) => setFormUsuario({ ...formUsuario, correo_usuario: limpiarNombreCorreo(e.target.value),})}
+                                        className="usuarios-addon-input"
+                                    />
+                                    <span className="usuarios-addon-tag">{DOMINIO_CORREO}</span>
+                                </div>
+                                <small className="usuarios-input-hint">
+                                    Escriba solo el nombre antes del arroba; {DOMINIO_CORREO} se agregara automáticamente.
+                                </small>
                             </div>
 
                             <div className="usuarios-form-group">
@@ -381,6 +498,7 @@ export default function GestionUsuariosView() {
                                     type="password"
                                     required={!editandoId}
                                     minLength={8}
+                                    maxLength={64}
                                     placeholder={editandoId ? 'Sin Cambios' : '********'}
                                     value={formUsuario.password}
                                     onChange={(e) => setFormUsuario({ ...formUsuario, password: e.target.value})}
@@ -390,26 +508,34 @@ export default function GestionUsuariosView() {
 
                             <div className="usuarios-form-group">
                                 <label className="usuarios-form-label">Teléfono de Contacto (Opcional)</label>
-                                <input
-                                    type="number"
-                                    placeholder="Ej: 987654321"
-                                    value={formUsuario.telefono}
-                                    onChange={(e) => setFormUsuario({ ...formUsuario, telefono: e.target.value})}
-                                    className="usuarios-form-input"
-                                />
+                                <div className="usuarios-input-addon">
+                                    <span className="usuarios-addon-tag prefix">+56 9</span>
+                                    <input
+                                        type="tel"
+                                        inputMode="numeric"
+                                        maxLength={9}
+                                        placeholder="Ej: 8765 4321"
+                                        value={formUsuario.telefono}
+                                        onChange={(e) => setFormUsuario({ ...formUsuario, telefono: formatearDigitosInput(e.target.value)})}
+                                        className="usuarios-addon-input"
+                                    />
+                                </div>
                             </div>
 
                             <div className="usuarios-form-group">
                                 <label className="usuarios-form-label">Cargo en la Empresa</label>
                                 <select
                                     required
+                                    disabled={editandoPropioSoporte}
                                     value={formUsuario.id_rol}
                                     onChange={(e) => setFormUsuario({ ...formUsuario, id_rol: e.target.value })}
                                     className="usuarios-form-select"
                                 >
                                     <option value="">Seleccione un cargo...</option>
                                     {roles.map((r) => (
-                                        <option key={r.id_rol} value={r.id_rol}>{ETIQUETAS_ROL[r.nombre] || r.nombre}</option>
+                                        <option key={r.id_rol} value={r.id_rol}>
+                                            {ETIQUETAS_ROL[r.nombre] || r.nombre}
+                                        </option>
                                     ))}
                                 </select>
                             </div>
