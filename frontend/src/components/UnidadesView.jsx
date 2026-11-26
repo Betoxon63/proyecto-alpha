@@ -2,7 +2,16 @@ import React, { useEffect, useState } from "react";
 import { Search, Edit2, Trash2 } from 'lucide-react';
 import { crearUnidad, actualizarUnidad, eliminarUnidad, } from "../services_api/inventarioService";
 
-export default function UnidadesView({unidades = [], articulos = [], cargando = false, puedeEscribir = false, puedeEliminar = false, onDatosActualizados, triggerCrear = 0, }) {
+// Sub-módulo para listar, buscar, registrar, editar y eliminar unidades de medida.
+export default function UnidadesView({
+    unidades = [],
+    articulos = [], 
+    cargando = false, 
+    puedeEscribir = false, 
+    puedeEliminar = false, 
+    onDatosActualizados, 
+    triggerCrear = 0, 
+}) {
     const [busqueda, setBusqueda] = useState('');
     const [modalAbierto, setModalAbierto] = useState(false);
     const [editandoId, setEditandoId] = useState(null);
@@ -10,7 +19,7 @@ export default function UnidadesView({unidades = [], articulos = [], cargando = 
     const [mensaje, setMensaje] = useState('');
     const [error, setError] = useState('');
 
-    // Abre el modal de nueva unidad cuando se presiona el botón superior de la vista principal.
+    // Abre el modal de nueva unidad.
     useEffect(() => {
         if (triggerCrear > 0) {
             setEditandoId(null);
@@ -20,6 +29,7 @@ export default function UnidadesView({unidades = [], articulos = [], cargando = 
         }
     }, [triggerCrear]);
 
+    // Carga la unidad de medida para modificarla.
     const abrirModalEditar = (uni) => {
         setEditandoId(uni.id_unidad_medida);
         setNombre(uni.nombre || '');
@@ -27,18 +37,25 @@ export default function UnidadesView({unidades = [], articulos = [], cargando = 
         setModalAbierto(true);
     };
 
+    // Guarda los datos validando el texto ingresado.
     const guardarUnidad = async (e) => {
         e.preventDefault();
-        if (!nombre.trim()) return;
+
+        const nombre_limpio = nombre.trim();
+        if (nombre_limpio.length < 1 || nombre_limpio.length > 50) {
+            setError('El nombre de la unidad de medida debe tener entre 1 y 50 caracteres.');
+            return;
+        }
+
         setError('');
         setMensaje('');
 
         try {
             if (editandoId) {
-                await actualizarUnidad(editandoId, { nombre: nombre.trim() });
+                await actualizarUnidad(editandoId, { nombre: nombre_limpio });
                 setMensaje('Unidad de medida actualizada correctamente.');
             } else {
-                await crearUnidad({ nombre: nombre.trim() });
+                await crearUnidad({ nombre: nombre_limpio });
                 setMensaje('Nueva unidad de medida registrada correctamente.');
             }
             setModalAbierto(false);
@@ -55,6 +72,7 @@ export default function UnidadesView({unidades = [], articulos = [], cargando = 
         }
     };
 
+    // Elimina una unidad de medida.
     const borrarUnidad = async (uni) => {
         if (!window.confirm(`¿Está seguro de eliminar la unidad de medida "${uni.nombre}"?`)) return;
         setError('');
@@ -66,12 +84,20 @@ export default function UnidadesView({unidades = [], articulos = [], cargando = 
             if (onDatosActualizados) await onDatosActualizados();
         } catch (err) {
             const detalle = err.response?.data?.detail;
-            setError(detalle || 'No se puede eliminar esta unidad de medida porque ya está siendo usada por materiales en el catálogo.');
+            setError(
+                detalle || 
+                    'No se puede eliminar esta unidad de medida porque ya está siendo usada por materiales en el catálogo.'
+            );
         }
     };
 
-    const contarMateriales = (idUnidad) => articulos.filter((a) => Number(a.id_unidad_medida) === Number(idUnidad)).length;
-    const unidadesFiltradas = unidades.filter((uni) => (uni.nombre || '').toLowerCase().includes(busqueda.toLowerCase()));
+    // Cuenta cuántos materiales del catálogo utilizan cada unidad de medida.
+    const contarMateriales = (idUnidad) => 
+        articulos.filter((a) => Number(a.id_unidad_medida) === Number(idUnidad)).length;
+
+    const unidadesFiltradas = unidades.filter((uni) => 
+        (uni.nombre || '').toLowerCase().includes(busqueda.toLowerCase())
+    );
 
     return (
         <div className="catalogo-submodulo">
@@ -84,6 +110,7 @@ export default function UnidadesView({unidades = [], articulos = [], cargando = 
                         <Search size={15} color="#64748b" />
                         <input
                             type="text"
+                            maxLength={80}
                             placeholder="Buscar unidad de medida..."
                             value={busqueda}
                             onChange={(e) => setBusqueda(e.target.value)}
@@ -179,6 +206,8 @@ export default function UnidadesView({unidades = [], articulos = [], cargando = 
                                 <input
                                     type="text"
                                     required
+                                    minLength={1}
+                                    maxLength={50}
                                     placeholder="Ej: Unidad, Metros lineales, Cilindro, Litros..."
                                     value={nombre}
                                     onChange={(e) => setNombre(e.target.value)}

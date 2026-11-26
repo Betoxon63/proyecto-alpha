@@ -2,7 +2,16 @@ import React, { useEffect, useState } from "react";
 import { Search, Edit2, Trash2 } from 'lucide-react';
 import { crearCategoria, actualizarCategoria, eliminarCategoria, } from "../services_api/inventarioService";
 
-export default function CategoriasView({categorias = [], articulos = [], cargando = false, puedeEscribir = false, puedeEliminar = false, onDatosActualizados, triggerCrear = 0, }) {
+// Sub-módulo para listar, buscar, registrar, editar y eliminar categorías de bodega.
+export default function CategoriasView({
+    categorias = [], 
+    articulos = [], 
+    cargando = false, 
+    puedeEscribir = false, 
+    puedeEliminar = false, 
+    onDatosActualizados, 
+    triggerCrear = 0, 
+}) {
     const [busqueda, setBusqueda] = useState('');
     const [modalAbierto, setModalAbierto] = useState(false);
     const [editandoId, setEditandoId] = useState(null);
@@ -10,7 +19,7 @@ export default function CategoriasView({categorias = [], articulos = [], cargand
     const [mensaje, setMensaje] = useState('');
     const [error, setError] = useState('');
 
-    // Abre el modal de nueva categoría cuando se presiona el botón superior de la vista principal.
+    // Abre el modal de nueva categoría.
     useEffect(() => {
         if (triggerCrear > 0) {
             setEditandoId(null);
@@ -20,6 +29,7 @@ export default function CategoriasView({categorias = [], articulos = [], cargand
         }
     }, [triggerCrear]);
 
+    // Carga la categoría elegida para modificarla.
     const abrirModalEditar = (cat) => {
         setEditandoId(cat.id_categoria);
         setNombre(cat.nombre || '');
@@ -27,18 +37,25 @@ export default function CategoriasView({categorias = [], articulos = [], cargand
         setModalAbierto(true);
     };
 
+    // Guarda los datos validando el texto ingresado.
     const guardarCategoria = async (e) => {
         e.preventDefault();
-        if (!nombre.trim()) return;
+
+        const nombre_limpio = nombre.trim();
+        if (nombre_limpio.length < 2 || nombre_limpio.length > 50) {
+            setError('El nombre de la categoría debe tener entre 2 y 50 caracteres.');
+            return;
+        }
+
         setError('');
         setMensaje('');
 
         try {
             if (editandoId) {
-                await actualizarCategoria(editandoId, { nombre: nombre.trim() });
+                await actualizarCategoria(editandoId, { nombre: nombre_limpio });
                 setMensaje('Categoría actualizada correctamente.');
             } else {
-                await crearCategoria({ nombre: nombre.trim() });
+                await crearCategoria({ nombre: nombre_limpio });
                 setMensaje('Nueva categoría registrada correctamente.');
             }
             setModalAbierto(false);
@@ -55,6 +72,7 @@ export default function CategoriasView({categorias = [], articulos = [], cargand
         }
     };
 
+    // Elimina una categoría.
     const borrarCategoria = async (cat) => {
         if (!window.confirm(`¿Está seguro de eliminar la categoría "${cat.nombre}"?`)) return;
         setError('');
@@ -66,12 +84,20 @@ export default function CategoriasView({categorias = [], articulos = [], cargand
             if (onDatosActualizados) await onDatosActualizados();
         } catch (err) {
             const detalle = err.response?.data?.detail;
-            setError(detalle || 'No se puede eliminar esta categoría porque ya está asignada a materiales en el catálogo.');
+            setError(
+                detalle || 
+                    'No se puede eliminar esta categoría porque ya está asignada a materiales en el catálogo.'
+            );
         }
     };
 
-    const contarMateriales = (idCategoria) => articulos.filter((a) => Number(a.id_categoria) === Number(idCategoria)).length;
-    const categoriasFiltradas = categorias.filter((cat) => (cat.nombre || '').toLowerCase().includes(busqueda.toLowerCase()));
+    // Cuenta cuántos materiales del catálogo pertenecen a cada categoría.
+    const contarMateriales = (idCategoria) => 
+        articulos.filter((a) => Number(a.id_categoria) === Number(idCategoria)).length;
+
+    const categoriasFiltradas = categorias.filter((cat) => 
+        (cat.nombre || '').toLowerCase().includes(busqueda.toLowerCase())
+    );
 
     return (
         <div className="catalogo-submodulo">
@@ -84,6 +110,7 @@ export default function CategoriasView({categorias = [], articulos = [], cargand
                         <Search size={15} color="#64748b" />
                         <input
                             type="text"
+                            maxLength={80}
                             placeholder="Buscar categoría por nombre..."
                             value={busqueda}
                             onChange={(e) => setBusqueda(e.target.value)}
@@ -179,6 +206,8 @@ export default function CategoriasView({categorias = [], articulos = [], cargand
                                 <input
                                     type="text"
                                     required
+                                    minLength={2}
+                                    maxLength={50}
                                     placeholder="Ej: Refrigeración, Electricidad, Fitting..."
                                     value={nombre}
                                     onChange={(e) => setNombre(e.target.value)}

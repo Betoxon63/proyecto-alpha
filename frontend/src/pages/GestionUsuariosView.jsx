@@ -302,13 +302,13 @@ export default function GestionUsuariosView({ usuarioActual }) {
                     <div className="usuarios-rbac-item">
                         <div className="usuarios-rbac-role">Encargado de Bodega</div>
                         <div className="usuarios-rbac-scope bodega">Operación de Bodega</div>
-                        <div className="usuarios-rbac-desc">Catálogo, ingreso de compras, salidas y mermas</div>
+                        <div className="usuarios-rbac-desc">Catálogo, solicitudes de compra, recepción física, despachos y mermas</div>
                     </div>
 
                     <div className="usuarios-rbac-item">
                         <div className="usuarios-rbac-role">Encargado de Finanzas</div>
                         <div className="usuarios-rbac-scope finanzas">Clientes y Facturas</div>
-                        <div className="usuarios-rbac-desc">Proveedores, clientes y revisión de gastos</div>
+                        <div className="usuarios-rbac-desc">Clientes, proveedores, aprobación de compras, facturas y gastos</div>
                     </div>
 
                     <div className="usuarios-rbac-item">
@@ -488,7 +488,7 @@ export default function GestionUsuariosView({ usuarioActual }) {
                                     <span className="usuarios-addon-tag">{DOMINIO_CORREO}</span>
                                 </div>
                                 <small className="usuarios-input-hint">
-                                    Escriba solo el nombre antes del arroba; {DOMINIO_CORREO} se agregara automáticamente.
+                                    Escriba solo el nombre antes del arroba; {DOMINIO_CORREO} se agregará automáticamente.
                                 </small>
                             </div>
 

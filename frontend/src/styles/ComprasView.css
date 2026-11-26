@@ -132,6 +132,7 @@
     border-radius: 8px;
     padding: 6px 12px;
     width: 340px;
+    max-width: 100%;
     gap: 8px;
 }
 
@@ -278,7 +279,8 @@
     border-radius: 16px;
     max-width: 560px;
     width: 100%;
-    overflow: hidden;
+    max-height: 92vh;
+    overflow-y: auto;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     border: 1px solid #cbd5e1;
 }
@@ -341,6 +343,11 @@
     font-size: 13px;
 }
 
+.compras-form-input:focus {
+    outline: none;
+    border-color: var(--color-primario);
+}
+
 .compras-modal-actions {
     display: flex;
     justify-content: flex-end;
@@ -372,6 +379,37 @@
 
 .compras-btn-submit:hover {
     background-color: var(--color-primario-hover);
+}
+
+.compras-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.compras-btn-export {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background-color: #f0fdf4;
+    color: var(--color-primario);
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.compras-btn-export:hover:not(:disabled) {
+    background-color: #dcfce7;
+}
+
+.compras-btn-export:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 @media (max-width: 768px) {

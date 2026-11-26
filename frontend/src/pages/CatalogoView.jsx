@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { Boxes, Search, Plus, Edit2, Trash2, Tag, Ruler, Dice1 } from 'lucide-react';
+import { useNavigate } from "react-router-dom";
+import { Boxes, Search, Plus, Edit2, Trash2, Tag, Ruler, BarChart3, Lock, ShoppingCart } from 'lucide-react';
 import { obtenerArticulos, crearArticulo, actualizarArticulo, eliminarArticulo, obtenerCategorias, obtenerUnidades, } from '../services_api/inventarioService';
 import AlertaStock from "../components/AlertaStock";
+import ResumenBodegaView from "../components/ResumenBodegaView";
 import CategoriasView from "../components/CategoriasView";
 import UnidadesView from "../components/UnidadesView";
 import '../styles/CatalogoView.css'
 
+// Valores iniciales vacios.
 const estadoInicialArticulo = {
     codigo_barra: '',
     nombre: '',
@@ -18,28 +21,36 @@ const estadoInicialArticulo = {
     precio: 0,
 };
 
+// Pantalla principal del Catálogo de Bodega.
 const CatalogoView = ({ usuario }) => {
+    const navigate = useNavigate();
     const [pestana, setPestana] = useState('materiales');
     const [articulos, setArticulos] = useState([]);
     const [categorias, setCategorias] = useState([]);
     const [unidades, setUnidades] = useState([]);
+
+    // Filtros de la tabla de materiales.
     const [busqueda, setBusqueda] = useState('');
     const [filtroStock, setFiltroStock] = useState('Todos');
+    const [filtroCategoria, setFiltroCategoria] = useState('');
 
+    // Control de ventanas emergentes.
     const [modalMaterialAbierto, setModalMaterialAbierto] = useState(false);
     const [formArticulo, setFormArticulo] = useState(estadoInicialArticulo);
     const [editandoId, setEditandoId] = useState(null);
     const [triggerCrearCategoria, setTriggerCrearCategoria] = useState(0);
     const [triggerCrearUnidad, setTriggerCrearUnidad] = useState(0);
 
-
     const [mensaje, setMensaje] = useState('');
     const [error, setError] = useState('');
     const [cargando, setCargando] = useState(true);
 
+    // Permisos según el cargo.
     const rol = usuario?.rol;
     const puedeEscribir = ['administracion', 'encargado_bodega'].includes(rol);
-    const puedeEliminar = rol == 'administracion';
+    const puedeEliminar = rol === 'administracion';
+    const puedeVerPrecios = rol !== 'supervisor_obra';
+    const bloquearStockYPrecio = Boolean(editandoId) && rol === 'encargado_bodega';
 
     // Carga los materiales, categorías y unidades desde el servidor.
     const cargarDatos = async () => {
@@ -49,6 +60,7 @@ const CatalogoView = ({ usuario }) => {
             setArticulos(resArt.data || []);
             setCategorias(resCat.data || []);
             setUnidades(resUni.data || []);
+            window.dispatchEvent(new Event('fyag_inventario_actualizado'));
         } catch {
             setError('No se pudo cargar el listado de materiales de bodega.');
         } finally {
@@ -60,6 +72,7 @@ const CatalogoView = ({ usuario }) => {
         cargarDatos();
     }, []);
 
+    // Cambia entre pestañas limpiando avisos anteriores.
     const cambiarPestana = (nuevaPestana) => {
         setPestana(nuevaPestana);
         setMensaje('');
@@ -68,6 +81,7 @@ const CatalogoView = ({ usuario }) => {
         setTriggerCrearUnidad(0);
     };
 
+    // Abre el modal vacío para registrar un material nuevo.
     const abrirModalNuevoMaterial = () => {
         setEditandoId(null);
         setError('');
@@ -75,35 +89,87 @@ const CatalogoView = ({ usuario }) => {
         setModalMaterialAbierto(true);
     };
 
+    // Abre el modal cargando los datos del material elegido para modificarlos.
     const abrirModalEditarMaterial = (art) => {
         setMensaje('');
         setError('');
         setEditandoId(art.id_articulo);
         setFormArticulo({
-            codigo_barra: art.codigo_barra,
-            nombre: art.nombre,
-            id_categoria: art.id_categoria,
-            id_unidad_medida: art.id_unidad_medida,
-            ubicacion: art.ubicacion,
-            stock_disponible: art.stock_disponible,
-            stock_minimo: art.stock_minimo,
-            stock_comprometido: art.stock_comprometido,
-            precio: art.precio,
+            codigo_barra: String(art.codigo_barra || ''),
+            nombre: art.nombre || '',
+            id_categoria: art.id_categoria || '',
+            id_unidad_medida: art.id_unidad_medida || '',
+            ubicacion: art.ubicacion || '',
+            stock_disponible: Number(art.stock_disponible || 0),
+            stock_minimo: Number(art.stock_minimo || 0),
+            stock_comprometido: Number(art.stock_comprometido || 0),
+            precio: Number(art.precio || 0),
         });
         setModalMaterialAbierto(true);
     };
 
-    // Guarda un material nuevo o actualiza uno existente.
+    // Lleva a la pantalla de Solicitudes con el material y la cantidad sugerida precargados.
+    const irASolicitarMaterial = (art) => {
+        const sugerido =
+            art.faltante_reposicion !== undefined && Number(art.faltante_reposicion) > 0
+                ? Number(art.faltante_reposicion)
+                : Math.max(
+                    1,
+                    Number(art.stock_minimo || 0) +
+                        Number(art.stock_comprometido || 0) -
+                        Number(art.stock_disponible || 0)
+                );
+        
+        navigate('/solicitudes', {
+            state: {
+                abrirCrear: true,
+                articuloId: art.id_articulo,
+                cantidadSugerida: sugerido,
+            },
+        });
+    };
+
+    // Valida los campos y guarda un material nuevo o actualizado en el servidor.
     const guardarArticulo = async (e) => {
         e.preventDefault();
         setError('');
         setMensaje('');
+
+        const codigoLimpio = String(formArticulo.codigo_barra || '').replace(/\D/g, '');
+        const nombreLimpio = formArticulo.nombre.trim();
+        const ubicacionLimpia = formArticulo.ubicacion.trim();
+
+        if (!codigoLimpio || codigoLimpio.length > 15 || Number(codigoLimpio) <= 0) {
+            setError('El código de barras debe ser un número positivo de hasta 15 dígitos.');
+            return;
+        }
+        if (nombreLimpio.length < 3 || nombreLimpio.length > 100) {
+            setError('El nombre del material debe tener entre 3 y 100 caracteres.');
+            return;
+        }
+        if (ubicacionLimpia.length < 2 || ubicacionLimpia.length > 80) {
+            setError('La ubicación en bodega debe tener entre 2 y 80 caracteres.');
+            return;
+        }
+
+        const datosEnviar = {
+            codigo_barra: Number(codigoLimpio),
+            nombre: nombreLimpio,
+            id_categoria: Number(formArticulo.id_categoria),
+            id_unidad_medida: Number(formArticulo.id_unidad_medida),
+            ubicacion: ubicacionLimpia,
+            stock_disponible: Number(formArticulo.stock_disponible || 0),
+            stock_minimo: Number(formArticulo.stock_minimo || 0),
+            stock_comprometido: Number(formArticulo.stock_comprometido || 0),
+            precio: Number(formArticulo.precio || 0),
+        };
+
         try {
             if (editandoId) {
-                await actualizarArticulo(editandoId, formArticulo);
+                await actualizarArticulo(editandoId, datosEnviar);
                 setMensaje('Los datos del material se actualizaron correctamente.');
             } else {
-                await crearArticulo(formArticulo);
+                await crearArticulo(datosEnviar);
                 setMensaje('Nuevo material registrado en la bodega.');
             }
             setModalMaterialAbierto(false);
@@ -116,7 +182,7 @@ const CatalogoView = ({ usuario }) => {
                 const detalle = Object.values(dataErr).flat().join(' ');
                 setError(detalle);
             } else {
-                setError('No se pudo guardar el material. Verifique que el código de barras no esté repetido.')
+                setError('No se pudo guardar el material. Verifique que el código de barras no esté repetido.');
             }
         }
     };
@@ -132,15 +198,39 @@ const CatalogoView = ({ usuario }) => {
             await cargarDatos();
         } catch (err) {
             const detalle = err.response?.data?.detail;
-            setError(detalle || 'No se puede eliminar un material que ya tiene registros de entradas o salidas en el historial.');
+            setError(
+                detalle || 
+                    'No se puede eliminar un material que ya tiene registros de entradas o salidas en el historial.'
+            );
         }
     };
 
-    // Filtra los materiales según el buscador y el botón de estado seleccionado.
+    // Contadores compactos para mostrar junto a los filtros de estado.
+    const totalAgotados = articulos.filter((a) => Number(a.stock_disponible) <= 0).length;
+    const totalStockBajo = articulos.filter(
+        (a) => Number(a.stock_disponible) > 0 && Number(a.stock_disponible) <= Number(a.stock_minimo)
+    ).length;
+    const totalStockNormal = articulos.length - totalAgotados - totalStockBajo;
+
+    const opcionesFiltroStock = [
+        { clave: 'Todos', etiqueta: `Todos (${articulos.length})` },
+        { clave: 'Stock Normal', etiqueta: `Normal (${totalStockNormal})` },
+        { clave: 'Stock Bajo', etiqueta: `Stock Bajo (${totalStockBajo})` },
+        { clave: 'Agotados', etiqueta: `Agotados (${totalAgotados})` },
+    ]
+
+    // Filtra la tabla combinando buscador, categoría y nivel de stock.
     const articulosFiltrados = articulos.filter((art) => {
-        const esCritico = Number(art.stock_disponible) <= Number(art.stock_minimo);
-        if (filtroStock === 'Stock Normal' && esCritico) return false;
-        if (filtroStock === 'Stock Bajo' && !esCritico) return false;
+        const disponible = Number(art.stock_disponible || 0);
+        const minimo = Number(art.stock_minimo || 0);
+
+        if (filtroStock === 'Agotados' && disponible > 0) return false;
+        if (filtroStock === 'Stock Bajo' && (disponible <= 0 || disponible > minimo)) return false;
+        if (filtroStock === 'Stock Normal' && disponible <= minimo) return false;
+
+        if (filtroCategoria && String(art.id_categoria) !== String(filtroCategoria)) {
+            return false;
+        }
 
         if (busqueda.trim() !== '') {
             const q = busqueda.toLowerCase();
@@ -148,7 +238,7 @@ const CatalogoView = ({ usuario }) => {
             const codigoTxt = String(art.codigo_barra || '').toLowerCase();
             const categoriaTxt = (art.categoria_nombre || '').toLowerCase();
             const ubicacionTxt = (art.ubicacion || '').toLowerCase();
-            return(
+            return (
                 nombreTxt.includes(q) ||
                 codigoTxt.includes(q) ||
                 categoriaTxt.includes(q) ||
@@ -158,22 +248,22 @@ const CatalogoView = ({ usuario }) => {
         return true;
     });
 
-    const totalStockBajo = articulos.filter((a) => Number(a.stock_disponible) <= Number(a.stock_minimo)).length;
-    const totalStockNormal = articulos.length - totalStockBajo;
+    const totalColumnasTabla = 7 + (puedeVerPrecios ? 1 : 0) + (puedeEscribir ? 1 : 0);
 
     return (
         <div className="contenedor-vista">
             <div className="catalogo-container">
+                {/* Cabecera principal */}
                 <div className="catalogo-header">
                     <div>
                         <h1 className="catalogo-title">Catálogo de Materiales y Repuestos de Bodega</h1>
                         <p className="catalogo-subtitle">
-                            Control de existencias disponibles, clasificación de bodega, precios y avisos de reposición
+                            Control de existencias disponibles, clasificación de bodega y avisos de reposición
                         </p>
                     </div>
 
                     <div className="catalogo-header-actions">
-                        {puedeEscribir && pestana === 'materiales' && (
+                        {puedeEscribir && (pestana === 'materiales' || pestana === 'resumen') && (
                             <button type="button" onClick={abrirModalNuevoMaterial} className="catalogo-btn-add">
                                 <Plus size={16} />
                                 <span>Registrar Material</span>
@@ -194,11 +284,20 @@ const CatalogoView = ({ usuario }) => {
                     </div>
                 </div>
 
+                {/* Pestañas del módulo */}
                 <div className="catalogo-tabs-bar">
                     <button type="button" className={`catalogo-tab-item ${pestana === 'materiales' ? 'active' : ''}`} onClick={() => cambiarPestana('materiales')}>
                         <Boxes size={16} />
                         <span>Materiales y Repuestos</span>
                         <span className="catalogo-tab-count">{articulos.length}</span>
+                    </button>
+
+                    <button type="button" className={`catalogo-tab-item ${pestana === 'resumen' ? 'active' : ''}`} onClick={() => cambiarPestana('resumen')}>
+                        <BarChart3 size={16} />
+                        <span>Resumen de Bodega</span>
+                        {totalAgotados + totalStockBajo > 0 && (
+                            <span className="catalogo-tab-count alerta-count">{totalAgotados + totalStockBajo}</span>
+                        )}
                     </button>
 
                     <button type="button" className={`catalogo-tab-item ${pestana === 'categorias' ? 'active' : ''}`} onClick={() => cambiarPestana('categorias')}>
@@ -214,52 +313,55 @@ const CatalogoView = ({ usuario }) => {
                     </button>
                 </div>
 
+                {/* TABLA DE MATERIALES */}
                 {pestana === 'materiales' && (
                     <>
                         {mensaje && <div className="alerta-exito">{mensaje}</div>}
                         {error && !modalMaterialAbierto && <div className="alerta-error">{error}</div>}
 
-                        <div className="catalogo-kpi-grid">
-                            <div className="catalogo-kpi-card">
-                                <div className="catalogo-kpi-label">Total de Materiales en Catálogo</div>
-                                <div className="catalogo-kpi-value">{articulos.length}</div>
-                            </div>
-                            <div className="catalogo-kpi-card">
-                                <div className="catalogo-kpi-label">Con Stock Suficiente</div>
-                                <div className="catalogo-kpi-value">{totalStockNormal}</div>
-                            </div>
-                            <div className="catalogo-kpi-card">
-                                <div className="catalogo-kpi-label">Materiales por Agotarse</div>
-                                <div className="catalogo-kpi-value">{totalStockBajo}</div>
-                            </div>
-                        </div>
-
                         <div className="catalogo-table-card">
                             <div className="catalogo-toolbar">
-                                <div className="catalogo-search-box">
-                                    <Search size={15} color="#64748b" />
-                                    <input
-                                        type="text"
-                                        placeholder="Buscar por código, nombre, categoría o pasillo..."
-                                        value={busqueda}
-                                        onChange={(e) => setBusqueda(e.target.value)}
-                                        className="catalogo-search-input"
-                                    />
+                                <div className="catalogo-toolbar-left">
+                                    <div className="catalogo-search-box">
+                                        <Search size={15} color="#64748b" />
+                                        <input
+                                            type="text"
+                                            maxLength={80}
+                                            placeholder="Buscar por código, nombre, categoría o pasillo..."
+                                            value={busqueda}
+                                            onChange={(e) => setBusqueda(e.target.value)}
+                                            className="catalogo-search-input"
+                                        />
+                                    </div>
+
+                                    <select value={filtroCategoria} onChange={(e) => setFiltroCategoria(e.target.value)} className="catalogo-category-filter" aria-label="Filtrar por categoría">
+                                        <option value="">Todas las categorías</option>
+                                        {categorias.map((c) => (
+                                            <option key={c.id_categoria} value={c.id_categoria}>
+                                                {c.nombre}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
 
                                 <div className="catalogo-filter-group">
-                                    {['Todos', 'Stock Normal', 'Stock Bajo'].map((f) => (
+                                    {opcionesFiltroStock.map((op) => (
                                         <button
-                                            key={f}
+                                            key={op.clave}
                                             type="button"
-                                            onClick={() => setFiltroStock(f)}
-                                            className={`catalogo-filter-btn ${filtroStock === f ? 'active' : ''}`}
-                                        >{f}</button>
+                                            onClick={() => setFiltroStock(op.clave)}
+                                            className={`catalogo-filter-btn ${
+                                                op.clave === 'Agotados' ? 'peligro' : ''
+                                            } ${filtroStock === op.clave ? 'active' : ''}`}
+                                        >
+                                            {op.etiqueta}
+                                        </button>
                                     ))}
                                 </div>
                             </div>
 
-                            <div className="catalogo-table-wrapper">
+                            {/* Tabla de escritorio */}
+                            <div className="catalogo-table-wrapper catalogo-desktop-table">
                                 <table className="catalogo-table">
                                     <thead>
                                         <tr>
@@ -270,78 +372,182 @@ const CatalogoView = ({ usuario }) => {
                                             <th>Disponible</th>
                                             <th>Reservado</th>
                                             <th>Estado de Stock</th>
-                                            <th>Precio Unitario</th>
+                                            {puedeVerPrecios && <th>Precio Unitario</th>}
                                             {puedeEscribir && <th>Acciones</th>}
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {cargando ? (
                                             <tr>
-                                                <td colSpan={puedeEscribir ? 9 : 8} className="catalogo-empty">
+                                                <td colSpan={totalColumnasTabla} className="catalogo-empty">
                                                     Cargando materiales de bodega...
                                                 </td>
                                             </tr>
                                         ) : articulosFiltrados.length === 0 ? (
                                             <tr>
-                                                <td colSpan={puedeEscribir ? 9 : 8} className="catalogo-empty">
+                                                <td colSpan={totalColumnasTabla} className="catalogo-empty">
                                                     No se encontraron materiales con los filtros seleccionados.
                                                 </td>
                                             </tr>
                                         ) : (
-                                            articulosFiltrados.map((art) => (
-                                                <tr key={art.id_articulo}>
-                                                    <td>
-                                                        <span className="catalogo-code-badge">
-                                                            {art.codigo_barra}
-                                                        </span>
-                                                    </td>
-                                                    <td>
-                                                        <div className="catalogo-item-name">{art.nombre}</div>
-                                                        <div className="catalogo-item-unit">Unidad: {art.unidad_nombre}</div>
-                                                    </td>
-                                                    <td>
-                                                        <span className="catalogo-category-tag">
-                                                            {art.categoria_nombre}
-                                                        </span>
-                                                    </td>
-                                                    <td>{art.ubicacion}</td>
-                                                    <td className="catalogo-qty-bold">{art.stock_disponible}</td>
-                                                    <td>{art.stock_comprometido}</td>
-                                                    <td>
-                                                        <AlertaStock
-                                                            disponible={art.stock_disponible}
-                                                            minimo={art.stock_minimo}
-                                                        />
-                                                    </td>
-                                                    <td className="catalogo-price">
-                                                        ${Number(art.precio || 0).toLocaleString('es-CL')}
-                                                    </td>
-                                                    {puedeEscribir && (
+                                            articulosFiltrados.map((art) => {
+                                                const requiereReposicion =
+                                                    Number(art.stock_disponible) <= Number(art.stock_minimo);
+                                                return (
+                                                    <tr key={art.id_articulo}>
                                                         <td>
-                                                            <div className="catalogo-actions-cell">
-                                                                <button type="button" onClick={() => abrirModalEditarMaterial(art)} className="catalogo-btn-edit" title="Modificar datos del material">
-                                                                    <Edit2 size={13} />
-                                                                    <span>Editar</span>
-                                                                </button>
-                                                                {puedeEliminar && (
-                                                                    <button type="button" onClick={() => borrarArticulo(art.id_articulo, art.nombre)} className="catalogo-btn-delete" title="Eliminar material">
-                                                                        <Trash2 size={13} />
-                                                                        <span>Eliminar</span>
-                                                                    </button>
-                                                                )}
+                                                            <span className="catalogo-code-badge">
+                                                                {art.codigo_barra}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <div className="catalogo-item-name">{art.nombre}</div>
+                                                            <div className="catalogo-item-unit">
+                                                                Unidad: {art.unidad_nombre}
                                                             </div>
                                                         </td>
-                                                    )}
-                                                </tr>
-                                            ))
+                                                        <td>
+                                                            <span className="catalogo-category-tag">
+                                                                {art.categoria_nombre}
+                                                            </span>
+                                                        </td>
+                                                        <td>{art.ubicacion}</td>
+                                                        <td className="catalogo-qty-bold">{art.stock_disponible}</td>
+                                                        <td>{art.stock_comprometido}</td>
+                                                        <td>
+                                                            <AlertaStock
+                                                                disponible={art.stock_disponible}
+                                                                minimo={art.stock_minimo}
+                                                            />
+                                                        </td>
+                                                        {puedeVerPrecios && (
+                                                            <td className="catalogo-price">
+                                                                ${Number(art.precio || 0).toLocaleString('es-CL')}
+                                                            </td>
+                                                        )}
+                                                        {puedeEscribir && (
+                                                            <td>
+                                                                <div className="catalogo-actions-cell">
+                                                                    {requiereReposicion && (
+                                                                        <button type="button" onClick={() => irASolicitarMaterial(art)} className="catalogo-btn-pedir" title="Solicitar reposición a Finanzas">
+                                                                            <ShoppingCart size={13} />
+                                                                            <span>Pedir</span>
+                                                                        </button>
+                                                                    )}
+                                                                    <button type="button" onClick={() => abrirModalEditarMaterial(art)} className="catalogo-btn-edit" title="Modificar datos del material">
+                                                                        <Edit2 size={13} />
+                                                                        <span>Editar</span>
+                                                                    </button>
+                                                                    {puedeEliminar && (
+                                                                        <button type="button" onClick={() => borrarArticulo(art.id_articulo, art.nombre)} className="catalogo-btn-delete" title="Eliminar material">
+                                                                            <Trash2 size={13} />
+                                                                            <span>Eliminar</span>
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        )}
+                                                    </tr>
+                                                );
+                                            })
                                         )}
                                     </tbody>
                                 </table>
+                            </div>
+
+                            {/* Tarjetas táctiles para tablets y celulares */}
+                            <div className="catalogo-mobile-cards">
+                                {cargando ? (
+                                    <div className="catalogo-empty">Cargando materiales de bodega...</div>
+                                ) : articulosFiltrados.length === 0 ? (
+                                    <div className="catalogo-empty">
+                                        No se encontraron materiales con los filtros seleccionados.
+                                    </div>
+                                ) : (
+                                    articulosFiltrados.map((art) => {
+                                        const requiereReposicion =
+                                            Number(art.stock_disponible) <= Number(art.stock_minimo);
+                                        return (
+                                            <div key={art.id_articulo} className="catalogo-mobile-card">
+                                                <div className="catalogo-mobile-card-top">
+                                                    <div>
+                                                        <span className="catalogo-code-badge">{art.codigo_barra}</span>
+                                                        <div className="catalogo-item-name" style={{ marginTop: 6 }}>
+                                                            {art.nombre}
+                                                        </div>
+                                                    </div>
+                                                    <AlertaStock
+                                                        disponible={art.stock_disponible}
+                                                        minimo={art.stock_minimo}
+                                                    />
+                                                </div>
+
+                                                <div className="catalogo-mobile-meta">
+                                                    <span>{art.categoria_nombre}</span>
+                                                    <span>·</span>
+                                                    <span>{art.ubicacion}</span>
+                                                </div>
+
+                                                <div className="catalogo-mobile-stats">
+                                                    <div>
+                                                        <small>Disponible</small>
+                                                        <strong>
+                                                            {art.stock_disponible} {art.unidad_nombre}
+                                                        </strong>
+                                                    </div>
+                                                    <div>
+                                                        <small>Reservado</small>
+                                                        <strong>{art.stock_comprometido}</strong>
+                                                    </div>
+                                                    {puedeVerPrecios && (
+                                                        <div>
+                                                            <small>Precio</small>
+                                                            <strong className="catalogo-price">
+                                                                ${Number(art.precio || 0).toLocaleString('es-CL')}
+                                                            </strong>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {puedeEscribir && (
+                                                    <div className="catalogo-mobile-actions">
+                                                        {requiereReposicion && (
+                                                            <button type="button" onClick={() => irASolicitarMaterial(art)} className="catalogo-btn-pedir">
+                                                                <ShoppingCart size={14} />
+                                                                <span>Pedir</span>
+                                                            </button>
+                                                        )}
+                                                        <button type="button" onClick={() => abrirModalEditarMaterial(art)} className="catalogo-btn-edit">
+                                                            <Edit2 size={14} />
+                                                            <span>Editar</span>
+                                                        </button>
+                                                        {puedeEliminar && (
+                                                            <button type="button" onClick={() => borrarArticulo(art.id_articulo, art.nombre)} className="catalogo-btn-delete">
+                                                                <Trash2 size={14} />
+                                                                <span>Eliminar</span>
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })
+                                )}
                             </div>
                         </div>
                     </>
                 )}
 
+                {/* RESUMEN DE BODEGA */}
+                {pestana === 'resumen' && (
+                    <ResumenBodegaView
+                        articulos={articulos}
+                        categorias={categorias}
+                        usuario={usuario}
+                    />
+                )}
+
+                {/* CATEGORÍAS */}
                 {pestana === 'categorias' && (
                     <CategoriasView
                         categorias={categorias}
@@ -354,6 +560,7 @@ const CatalogoView = ({ usuario }) => {
                     />
                 )}
 
+                {/* UNIDADES */}
                 {pestana === 'unidades' && (
                     <UnidadesView
                         unidades={unidades}
@@ -366,12 +573,15 @@ const CatalogoView = ({ usuario }) => {
                     />
                 )}
 
+                {/* REGISTRAR O EDITAR MATERIAL */}
                 {modalMaterialAbierto && (
                     <div className="catalogo-modal-overlay">
                         <div className="catalogo-modal-card">
                             <div className="catalogo-modal-header">
                                 <div className="catalogo-modal-title">
-                                    {editandoId ? `Modificar Material #${editandoId}` : 'Registrar Nuevo Material en Bodega'}
+                                    {editandoId
+                                        ? `Modificar Material #${editandoId}`
+                                        : 'Registrar Nuevo Material en Bodega'}
                                 </div>
                                 <button type="button" onClick={() => setModalMaterialAbierto(false)} className="catalogo-modal-close">X</button>
                             </div>
@@ -379,15 +589,31 @@ const CatalogoView = ({ usuario }) => {
                             <form onSubmit={guardarArticulo} className="catalogo-modal-form">
                                 {error && <div className="alerta-error">{error}</div>}
 
+                                {bloquearStockYPrecio && (
+                                    <div className="catalogo-lock-notice">
+                                        <Lock size={15} />
+                                        <span>
+                                            Para proteger el control de bodega, el stock y el precio solo se actualizan al confirmar recepciones de compra, despachos, mermas o por Administración.
+                                        </span>
+                                    </div>
+                                )}
+
                                 <div className="catalogo-modal-grid">
                                     <div className="catalogo-field">
                                         <label className="catalogo-label">Código de Barras</label>
                                         <input
-                                            type="number"
+                                            type="text"
+                                            inputMode="numeric"
+                                            maxLength={15}
                                             className="catalogo-input"
                                             placeholder="Ej: 780123456789"
                                             value={formArticulo.codigo_barra}
-                                            onChange={(e) => setFormArticulo({ ...formArticulo, codigo_barra: e.target.value, })}
+                                            onChange={(e) =>
+                                                setFormArticulo({
+                                                    ...formArticulo,
+                                                    codigo_barra: e.target.value.replace(/\D/g, '').slice(0, 15),
+                                                })
+                                            }
                                             required
                                         />
                                     </div>
@@ -396,30 +622,58 @@ const CatalogoView = ({ usuario }) => {
                                         <label className="catalogo-label">Nombre del Material</label>
                                         <input
                                             type="text"
+                                            minLength={3}
+                                            maxLength={100}
                                             className="catalogo-input"
                                             placeholder="Ej: Tubo de cobre 1/2"
                                             value={formArticulo.nombre}
-                                            onChange={(e) => setFormArticulo({ ...formArticulo, nombre: e.target.value, })}
+                                            onChange={(e) =>
+                                                setFormArticulo({ ...formArticulo, nombre: e.target.value })
+                                            }
                                             required
                                         />
                                     </div>
 
                                     <div className="catalogo-field">
                                         <label className="catalogo-label">Categoría</label>
-                                        <select className="catalogo-select" value={formArticulo.id_categoria} onChange={(e) => setFormArticulo({ ...formArticulo, id_categoria: e.target.value, })} required>
+                                        <select
+                                            className="catalogo-select"
+                                            value={formArticulo.id_categoria}
+                                            onChange={(e) =>
+                                                setFormArticulo({
+                                                    ...formArticulo,
+                                                    id_categoria: e.target.value,
+                                                })
+                                            }
+                                            required
+                                        >
                                             <option value="">Seleccione categoría...</option>
                                             {categorias.map((c) => (
-                                                <option key={c.id_categoria} value={c.id_categoria}>{c.nombre}</option>
+                                                <option key={c.id_categoria} value={c.id_categoria}>
+                                                    {c.nombre}
+                                                </option>
                                             ))}
                                         </select>
                                     </div>
 
                                     <div className="catalogo-field">
                                         <label className="catalogo-label">Unidad de Medida</label>
-                                        <select className="catalogo-select" value={formArticulo.id_unidad_medida} onChange={(e) => setFormArticulo({ ...formArticulo, id_unidad_medida: e.target.value, })} required>
+                                        <select
+                                            className="catalogo-select"
+                                            value={formArticulo.id_unidad_medida}
+                                            onChange={(e) =>
+                                                setFormArticulo({
+                                                    ...formArticulo,
+                                                    id_unidad_medida: e.target.value,
+                                                })
+                                            }
+                                            required
+                                        >
                                             <option value="">Seleccione unidad...</option>
                                             {unidades.map((u) => (
-                                                <option key={u.id_unidad_medida} value={u.id_unidad_medida}>{u.nombre}</option>
+                                                <option key={u.id_unidad_medida} value={u.id_unidad_medida}>
+                                                    {u.nombre}
+                                                </option>
                                             ))}
                                         </select>
                                     </div>
@@ -428,10 +682,14 @@ const CatalogoView = ({ usuario }) => {
                                         <label className="catalogo-label">Ubicación en Bodega</label>
                                         <input
                                             type="text"
+                                            minLength={2}
+                                            maxLength={80}
                                             className="catalogo-input"
                                             placeholder="Ej: Pasillo A - Estante 2"
                                             value={formArticulo.ubicacion}
-                                            onChange={(e) => setFormArticulo({ ...formArticulo, ubicacion: e.target.value, })}
+                                            onChange={(e) =>
+                                                setFormArticulo({ ...formArticulo, ubicacion: e.target.value })
+                                            }
                                             required
                                         />
                                     </div>
@@ -439,11 +697,18 @@ const CatalogoView = ({ usuario }) => {
                                     <div className="catalogo-field">
                                         <label className="catalogo-label">Cantidad Disponible</label>
                                         <input
-                                            type="Number"
+                                            type="number"
                                             min="0"
+                                            max="1000000"
+                                            disabled={bloquearStockYPrecio}
                                             className="catalogo-input"
                                             value={formArticulo.stock_disponible}
-                                            onChange={(e) => setFormArticulo({ ...formArticulo, stock_disponible: Number(e.target.value), })}
+                                            onChange={(e) =>
+                                                setFormArticulo({
+                                                    ...formArticulo,
+                                                    stock_disponible: e.target.value === '' ? '' : Number(e.target.value),
+                                                })
+                                            }
                                             required
                                         />
                                     </div>
@@ -451,11 +716,17 @@ const CatalogoView = ({ usuario }) => {
                                     <div className="catalogo-field">
                                         <label className="catalogo-label">Cantidad Mínima (Aviso)</label>
                                         <input
-                                            type="Number"
+                                            type="number"
                                             min="0"
+                                            max="1000000"
                                             className="catalogo-input"
                                             value={formArticulo.stock_minimo}
-                                            onChange={(e) => setFormArticulo({ ...formArticulo, stock_minimo: Number(e.target.value), })}
+                                            onChange={(e) =>
+                                                setFormArticulo({
+                                                    ...formArticulo,
+                                                    stock_minimo: e.target.value === '' ? '' : Number(e.target.value),
+                                                })
+                                            }
                                             required
                                         />
                                     </div>
@@ -463,11 +734,18 @@ const CatalogoView = ({ usuario }) => {
                                     <div className="catalogo-field">
                                         <label className="catalogo-label">Reservado para Obras</label>
                                         <input
-                                            type="Number"
+                                            type="number"
                                             min="0"
+                                            max="1000000"
+                                            disabled={bloquearStockYPrecio}
                                             className="catalogo-input"
                                             value={formArticulo.stock_comprometido}
-                                            onChange={(e) => setFormArticulo({ ...formArticulo, stock_comprometido: Number(e.target.value), })}
+                                            onChange={(e) =>
+                                                setFormArticulo({
+                                                    ...formArticulo,
+                                                    stock_comprometido: e.target.value === '' ? '' : Number(e.target.value),
+                                                })
+                                            }
                                             required
                                         />
                                     </div>
@@ -475,11 +753,18 @@ const CatalogoView = ({ usuario }) => {
                                     <div className="catalogo-field">
                                         <label className="catalogo-label">Precio Unitario ($)</label>
                                         <input
-                                            type="Number"
+                                            type="number"
                                             min="0"
+                                            max="999999999"
+                                            disabled={bloquearStockYPrecio}
                                             className="catalogo-input"
                                             value={formArticulo.precio}
-                                            onChange={(e) => setFormArticulo({ ...formArticulo, precio: Number(e.target.value), })}
+                                            onChange={(e) =>
+                                                setFormArticulo({
+                                                    ...formArticulo,
+                                                    precio: e.target.value === '' ? '' : Number(e.target.value),
+                                                })
+                                            }
                                             required
                                         />
                                     </div>

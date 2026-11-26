@@ -1,6 +1,7 @@
 from django.db import models
 
 
+# Clasificación principal para agrupar los materiales de bodega.
 class Categoria(models.Model):
     id_categoria = models.AutoField(primary_key=True)
     nombre = models.TextField(unique=True)
@@ -11,6 +12,8 @@ class Categoria(models.Model):
     def __str__(self):
         return self.nombre
 
+
+# Unidad en la que se cuenta o mide cada material.
 class UnidadMedida(models.Model):
     id_unidad_medida = models.AutoField(primary_key=True)
     nombre = models.TextField(unique=True)
@@ -21,6 +24,8 @@ class UnidadMedida(models.Model):
     def __str__(self):
         return self.nombre
 
+
+# Ficha principal de cada material o repuesto almacenado en bodega.
 class Articulo(models.Model):
     id_articulo = models.AutoField(primary_key=True)
     codigo_barra = models.BigIntegerField(unique=True)

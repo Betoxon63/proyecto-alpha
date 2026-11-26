@@ -2,11 +2,11 @@ import logging
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 from .models import Rol
 
-# Registro de auditoría donde se anotan los intentos de acceso no autorizados.
+# Archivo donde se registran los intentos de entrada sin permiso.
 registro_seguridad = logging.getLogger('auditoria_alpha')
 
 
-# Obtiene la dirección IP desde donde se conecta el computador o la tablet.
+# Obtiene la dirección IP del equipo donde se conecta el trabajador.
 def obtener_ip(request):
     x_forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
     return x_forwarded.split(',')[0].strip() if x_forwarded else request.META.get('REMOTE_ADDR')
@@ -22,8 +22,9 @@ def registrar_denegacion(request, modulo):
     )
 
 
-# Define quién puede crear o modificar cuentas de trabajadores.
+# Define quién puede ver, crear, editar o eliminar cuentas de trabajadores.
 class PermisoUsuarios(BasePermission):
+    # Revisa el permiso general según el cargo del trabajador.
     def has_permission(self, request, view):
         if not (request.user and request.user.is_authenticated):
             return False
@@ -33,14 +34,14 @@ class PermisoUsuarios(BasePermission):
         if rol == Rol.ADMIN:
             return True
 
-        # Soporte Técnico puede listar, crear y editar, pero se bloquea la eliminación directa.
+        # Soporte Técnico puede ver, crear y editar cuentas, pero nunca borrarlas.
         if rol == Rol.SOPORTE_TI and request.method != 'DELETE':
             return True
 
         registrar_denegacion(request, "Personal y Cuentas")
         return False
 
-    # Validación sobre la cuenta que se intenta modificar.
+    # Revisa si se puede modificar la cuenta seleccionada.
     def has_object_permission(self, request, view, obj):
         rol = request.user.id_rol.nombre
 
@@ -50,7 +51,7 @@ class PermisoUsuarios(BasePermission):
         if rol == Rol.SOPORTE_TI:
             if request.method in SAFE_METHODS:
                 return True
-            # Impide que Soporte Técnico modifique o desactive cuentas de Administración.
+            # Impide que Soporte Técnico edite o desactive cuentas de Administración.
             if obj.id_rol.nombre == Rol.ADMIN:
                 registrar_denegacion(request, "Personal y Cuentas (Cuenta de Administración)")
                 return False
@@ -60,7 +61,7 @@ class PermisoUsuarios(BasePermission):
         return False
 
 
-# Define quién puede ver o modificar el catálogo de materiales de bodega.
+# Controla el acceso al catálogo de materiales, categorías y unidades de bodega.
 class PermisoArticulos(BasePermission):
     def has_permission(self, request, view):
         if not (request.user and request.user.is_authenticated):
@@ -70,8 +71,10 @@ class PermisoArticulos(BasePermission):
 
         if rol == Rol.ADMIN:
             return True
+        # Bodega puede ver, crear y editar fichas, pero no borrar materiales.
         if rol == Rol.BODEGA and request.method in ('GET', 'HEAD', 'OPTIONS', 'POST', 'PUT', 'PATCH'):
             return True
+        # Finanzas y Supervisor solo pueden consultar el catálogo.
         if rol in (Rol.FINANZAS, Rol.SUPERVISOR) and request.method in SAFE_METHODS:
             return True
 
@@ -79,7 +82,7 @@ class PermisoArticulos(BasePermission):
         return False
 
 
-# Define quién puede consultar y anotar movimientos en el Historial General.
+# Controla quién puede ver y registrar movimientos en el historial.
 class PermisoHistorial(BasePermission):
     def has_permission(self, request, view):
         if not (request.user and request.user.is_authenticated):
@@ -87,16 +90,18 @@ class PermisoHistorial(BasePermission):
         
         rol = request.user.id_rol.nombre
 
+        # Administración y Bodega pueden consultar y anotar movimientos nuevos.
         if rol in (Rol.ADMIN, Rol.BODEGA) and request.method in ('GET', 'HEAD', 'OPTIONS', 'POST'):
             return True
-        if rol in (Rol.FINANZAS, Rol.SUPERVISOR, Rol.SOPORTE_TI) and request.method in SAFE_METHODS:
+        # Finanzas audita el historial y Supervisor consulta solo los despachos de sus obras.
+        if rol in (Rol.FINANZAS, Rol.SUPERVISOR) and request.method in SAFE_METHODS:
             return True
 
         registrar_denegacion(request, "Historial de Movimientos")
         return False
 
 
-# Define quién puede manejar las fichas de Clientes.
+# Controla quién puede manejar las fichas de Clientes.
 class PermisoClientes(BasePermission):
     def has_permission(self, request, view):
         if not (request.user and request.user.is_authenticated):
@@ -104,8 +109,13 @@ class PermisoClientes(BasePermission):
 
         rol = request.user.id_rol.nombre
 
-        if rol in (Rol.ADMIN, Rol.FINANZAS):
+        # Solo Administración puede eliminar clientes.
+        if rol == Rol.ADMIN:
             return True
+        # Finanzas puede ver, registrar y editar clientes, pero no borrarlos.
+        if rol == Rol.FINANZAS and request.method in ('GET', 'HEAD', 'OPTIONS', 'POST', 'PUT', 'PATCH'):
+            return True
+        # Bodega y Supervisor solo pueden leer clientes para verlos en las obras.
         if rol in (Rol.BODEGA, Rol.SUPERVISOR) and request.method in SAFE_METHODS:
             return True
 
@@ -113,7 +123,7 @@ class PermisoClientes(BasePermission):
         return False
 
 
-# Define quién puede manejar las fichas de Proveedores.
+# Controla quién puede manejar las fichas de Proveedores.
 class PermisoProveedores(BasePermission):
     def has_permission(self, request, view):
         if not (request.user and request.user.is_authenticated):
@@ -121,8 +131,13 @@ class PermisoProveedores(BasePermission):
 
         rol = request.user.id_rol.nombre
 
-        if rol in (Rol.ADMIN, Rol.FINANZAS):
+        # Solo Administración puede eliminar proveedores.
+        if rol == Rol.ADMIN:
             return True
+        # Finanzas puede ver, registrar y editar proveedores, pero no borrarlos.
+        if rol == Rol.FINANZAS and request.method in ('GET', 'HEAD', 'OPTIONS', 'POST', 'PUT', 'PATCH'):
+            return True
+        # Bodega solo puede consultarlos cuando registra una devolución a proveedor.
         if rol == Rol.BODEGA and request.method in SAFE_METHODS:
             return True
 
@@ -130,7 +145,7 @@ class PermisoProveedores(BasePermission):
         return False
 
 
-# Controla el acceso al módulo de Facturas de Compra.
+# Controla el acceso a las facturas de compra.
 class PermisoFacturas(BasePermission):
     def has_permission(self, request, view):
         if not (request.user and request.user.is_authenticated):
@@ -138,18 +153,31 @@ class PermisoFacturas(BasePermission):
         
         rol = request.user.id_rol.nombre
 
-        if rol == Rol.ADMIN:
-            return True
-        if rol == Rol.BODEGA and request.method in ('GET', 'HEAD', 'OPTIONS', 'POST'):
-            return True
-        if rol == Rol.FINANZAS and request.method in SAFE_METHODS:
+        # Solo Administración y Finanzas pueden ver y registrar facturas.
+        if rol in (Rol.ADMIN, Rol.FINANZAS) and request.method in ('GET', 'HEAD', 'OPTIONS', 'POST'):
             return True
 
         registrar_denegacion(request, "Facturas de Compra")
         return False
 
 
-# Controla el acceso al módulo de Gestión de Obras.
+# Controla el acceso a las solicitudes de Reposición entre Bodega y Finanzas.
+class PermisoSolicitudes(BasePermission):
+    def has_permission(self, request, view):
+        if not (request.user and request.user.is_authenticated):
+            return False
+
+        rol = request.user.id_rol.nombre
+
+        # Administración, Bodega y Finanzas participan en el ciclo de solicitudes.
+        if rol in (Rol.ADMIN, Rol.BODEGA, Rol.FINANZAS) and request.method in ('GET', 'HEAD', 'OPTIONS', 'POST'):
+            return True
+
+        registrar_denegacion(request, "Solicitudes de Reposición")
+        return False
+
+
+# Controla quién puede crear, ver, editar o eliminar obras.
 class PermisoObras(BasePermission):
     def has_permission(self, request, view):
         if not (request.user and request.user.is_authenticated):
@@ -157,8 +185,13 @@ class PermisoObras(BasePermission):
         
         rol = request.user.id_rol.nombre
 
-        if rol in (Rol.ADMIN, Rol.SUPERVISOR):
+        # Solo Administración puede eliminar obras.
+        if rol == Rol.ADMIN:
             return True
+        # El Supervisor puede ver, crear y editar sus propias obras, pero no borrarlas.
+        if rol == Rol.SUPERVISOR and request.method in ('GET', 'HEAD', 'OPTIONS', 'POST', 'PUT', 'PATCH'):
+            return True
+        # Bodega y Finanzas solo pueden consultar las obras registradas.
         if rol in (Rol.BODEGA, Rol.FINANZAS) and request.method in SAFE_METHODS:
             return True
 
@@ -166,7 +199,7 @@ class PermisoObras(BasePermission):
         return False
 
 
-# Controla la lista paramétrica de Tipos de Servicio de las obras.
+# Controla la lista de tipos de servicio disponibles para clasificar obras.
 class PermisoTiposServicio(BasePermission):
     def has_permission(self, request, view):
         if not (request.user and request.user.is_authenticated):
@@ -174,6 +207,7 @@ class PermisoTiposServicio(BasePermission):
 
         rol = request.user.id_rol.nombre
 
+        # Solo Administración puede agregar, cambiar o borrar tipos de servicio.
         if rol == Rol.ADMIN:
             return True
         if rol in (Rol.SUPERVISOR, Rol.BODEGA, Rol.FINANZAS) and request.method in SAFE_METHODS:

@@ -1,25 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { Receipt, Plus, Calculator, CheckCircle } from 'lucide-react';
-import { obtenerProveedores, obtenerArticulos, actualizarArticulo } from '../services_api/inventarioService';
+import { obtenerProveedores, obtenerArticulos, crearFactura } from '../services_api/inventarioService';
+import { obtenerUsuarioActual } from '../services_api/authService';
 import { formatearRutVisual } from '../pages/GestionUsuariosView';
 import '../styles/FacturasComprasView.css';
 
-export default function FacturasComprasView({ proveedores: provProp = null, articulos: artProp = null, onRegistrarFactura, }) {
+const obtenerFechaHoyISO = () => new Date().toLocaleDateString('en-CA');
+
+// Formulario de ingreso directo de facturas de compra.
+export default function FacturasComprasView({ proveedores: provProp = null, articulos: artProp = null, usuario = null, onRegistrarFactura, }) {
+    const sesion = usuario || obtenerUsuarioActual();
+    const esFinanzas = sesion?.rol === 'encargado_finanza';
+    
     const [proveedores, setProveedores] = useState(provProp || []);
     const [articulos, setArticulos] = useState(artProp || []);
     const [proveedorId, setProveedorId] = useState('');
     const [numeroFactura, setNumeroFactura] = useState('');
+    const [fechaIngreso, setFechaIngreso] = useState(obtenerFechaHoyISO());
     const [articuloId, setArticuloId] = useState('');
     const [cantidad, setCantidad] = useState(1);
     const [precioUnitario, setPrecioUnitario] = useState(10000);
+    const [observaciones, setObservaciones] = useState('');
 
     // Descuentos comerciales sucesivos.
     const [d1, setD1] = useState(0);
     const [d2, setD2] = useState(0);
     const [d3, setD3] = useState(0);
-    const [successMsg, setSuccessMsg] = useState(false);
+    const [successMsg, setSuccessMsg] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
+    const [enviando, setEnviando] = useState(false);
 
+    // Sincroniza los listados de proveedores y materiales con el servidor o las pops recibidas.
     const cargarDatos = async () => {
         if (provProp && artProp) {
             setProveedores(provProp);
@@ -49,16 +60,18 @@ export default function FacturasComprasView({ proveedores: provProp = null, arti
     }, [provProp, artProp]);
 
     // Cálculo de hasta 3 descuentos sucesivos y del IVA (19%).
-    const bruto = Number(cantidad) * Number(precioUnitario);
-    const paso1 = bruto * (1 - Number(d1) / 100);
-    const paso2 = paso1 * (1 - Number(d2) / 100);
-    const neto = Math.round(paso2 * (1 - Number(d3) / 100));
+    const bruto = Number(cantidad || 0) * Number(precioUnitario || 0);
+    const paso1 = bruto * (1 - Number(d1 || 0) / 100);
+    const paso2 = paso1 * (1 - Number(d2 || 0) / 100);
+    const neto = Math.round(paso2 * (1 - Number(d3 || 0) / 100));
     const iva = Math.round(neto * 0.19);
     const total = neto + iva;
 
+    // Valida los datos y registra la factura en el servidor.
     const handleSubmit = async (e) => {
         e.preventDefault();
         setErrorMsg('');
+        setSuccessMsg('');
 
         const artObj = articulos.find((a) => String(a.id_articulo || a.id) === String(articuloId));
         const provObj = proveedores.find((p) => String(p.id_proveedor || p.id) === String(proveedorId));
@@ -68,39 +81,82 @@ export default function FacturasComprasView({ proveedores: provProp = null, arti
             return;
         }
 
-        const nroLimpio = String(numeroFactura).replace(/^FAC-/i, '').trim();
-        const resumenDescuentos = [d1, d2, d3].filter((d) => Number(d) > 0).map((d) => `${d}%`).join(' + ');
-        const textoMotivo = `Recepción Factura FAC-${nroLimpio} - ${provObj.razon_social}${resumenDescuentos ? ` (Desc. ${resumenDescuentos})` : ''}`;
+        const nroLimpio = String(numeroFactura).replace(/\D/g, '').trim();
+        if (!nroLimpio || Number(nroLimpio) <= 0) {
+            setErrorMsg('Ingrese un número de factura válido (solo dígitos positivos).');
+            return;
+        }
 
+        setEnviando(true);
         try {
+            const payload = {
+                numero_documento: Number(nroLimpio),
+                fecha_ingreso: fechaIngreso,
+                id_proveedor: provObj.id_proveedor,
+                articulo_id: artObj.id_articulo,
+                articulo_nombre: artObj.nombre,
+                cantidad: Number(cantidad),
+                precio_unitario: Number(precioUnitario),
+                descuento_1: Number(d1 || 0),
+                descuento_2: Number(d2 || 0),
+                descuento_3: Number(d3 || 0),
+                observaciones: observaciones.trim(),
+                documento: `FAC-${nroLimpio}`,
+            };
+
+            let respuesta = null;
             if (onRegistrarFactura) {
-                await onRegistrarFactura({
-                    id_factura: nroLimpio,
-                    numero_documento: Number(nroLimpio) || 0,
-                    id_proveedor: provObj.id_proveedor,
-                    proveedor: provObj.razon_social,
-                    articulo_id: artObj.id_articulo,
-                    articulo_nombre: artObj.nombre,
-                    cantidad: Number(cantidad),
-                    precio_unitario: Number(precioUnitario),
-                    neto,
-                    iva,
-                    total,
-                    documento: `FAC-${nroLimpio}`,
-                    motivo: textoMotivo,
-                });
+                respuesta = await onRegistrarFactura(payload);
             } else {
-                const nuevoStock = Number(artObj.stock_disponible) + Number(cantidad);
-                await actualizarArticulo(artObj.id_articulo, { ...artObj, stock_disponible: nuevoStock,});
+                const res = await crearFactura({
+                    id_proveedor: payload.id_proveedor,
+                    numero_documento: payload.numero_documento,
+                    fecha_ingreso: payload.fecha_ingreso,
+                    id_articulo: payload.articulo_id,
+                    cantidad: payload.cantidad,
+                    precio_unitario: payload.precio_unitario,
+                    descuento_1: payload.descuento_1,
+                    descuento_2: payload.descuento_2,
+                    descuento_3: payload.descuento_3,
+                    observaciones: payload.observaciones,
+                });
+                respuesta = res.data;
                 await cargarDatos();
             }
 
-            setSuccessMsg(true);
-            setTimeout(() => setSuccessMsg(false), 4000);
-        } catch {
-            setErrorMsg('No se pudo registrar la factura ni actualizar el stock.');
+            const netoFinal = respuesta?.neto_calculado ?? neto;
+            if (respuesta?.pendiente_recepcion) {
+                setSuccessMsg(
+                    `Factura FAC-${nroLimpio} guardada (Neto $${Number(netoFinal).toLocaleString('es-CL')}). Quedó "En camino" para que Bodega confirme la llegada física.`
+                );
+            } else {
+                setSuccessMsg(
+                    `Factura FAC-${nroLimpio} guardada (Neto $${Number(netoFinal).toLocaleString('es-CL')}). Se sumaron ${cantidad} unidades al catálogo.`
+                );
+            }
+
+            // Limpia los campos para evitar duplicar el envío por accidente.
+            setNumeroFactura('');
+            setCantidad(1);
+            setObservaciones('');
+            setD1(0);
+            setD2(0);
+            setD3(0);
+        } catch (err) {
+            const dataErr = err.response?.data;
+            if (typeof dataErr?.detail === 'string') {
+                setErrorMsg(dataErr.detail);
+            } else if (dataErr && typeof dataErr === 'object') {
+                setErrorMsg(Object.values(dataErr).flat().join(' '));
+            } else {
+                setErrorMsg('No se pudo registrar la factura. Revise los datos ingresados.');
+            }
+        } finally {
+            setEnviando(false);
         }
     };
+
+    const sinDatosBase = proveedores.length === 0 || articulos.length === 0;
 
     return (
         <div className="facturas-container">
@@ -109,9 +165,9 @@ export default function FacturasComprasView({ proveedores: provProp = null, arti
                     <Receipt size={22} />
                 </div>
                 <div>
-                    <h2 className="facturas-title">Ingreso de Facturas de Compra</h2>
+                    <h2 className="facturas-title">Ingreso Directo de Facturas de Compra</h2>
                     <p className="facturas-subtitle">
-                        Recepción de materiales en bodega con cálculo automático de hasta 3 descuentos sucesivos y aumento de stock.
+                        Registro de compras a proveedores con cálculo automático de hasta 3 descuentos sucesivos e IVA (19%).
                     </p>
                 </div>
             </div>
@@ -121,10 +177,7 @@ export default function FacturasComprasView({ proveedores: provProp = null, arti
             {successMsg && (
                 <div className="facturas-success-alert">
                     <CheckCircle size={18} color="#10b981" />
-                    <span>
-                        <strong>Factura registrada con éxito:</strong> Se sumaron {cantidad} unidades al catálogo
-                        y se calculó un valor neto de ${neto.toLocaleString('es-CL')}.
-                    </span>
+                    <span>{successMsg}</span>
                 </div>
             )}
 
@@ -154,8 +207,10 @@ export default function FacturasComprasView({ proveedores: provProp = null, arti
                                 <label className="facturas-label">N° Factura o Guía</label>
                                 <input
                                     type="text"
+                                    inputMode="numeric"
+                                    maxLength={10}
                                     value={numeroFactura}
-                                    onChange={(e) => setNumeroFactura(e.target.value)}
+                                    onChange={(e) => setNumeroFactura(e.target.value.replace(/\D/g, '').slice(0, 10))}
                                     className="facturas-input"
                                     placeholder='Ej: 99412'
                                     required
@@ -163,29 +218,34 @@ export default function FacturasComprasView({ proveedores: provProp = null, arti
                             </div>
                         </div>
 
-                        <div className="facturas-grid-row-2">
-                            <div>
-                                <label className="facturas-label">Material o Repuesto Recibido</label>
-                                <select value={articuloId} onChange={(e) => setArticuloId(e.target.value)} className="facturas-select" required>
-                                    {articulos.map((a) => {
+                        <div>
+                            <label className="facturas-label">Material o Repuesto Comprado</label>
+                            <select value={articuloId} onChange={(e) => setArticuloId(e.target.value)} className="facturas-select" required>
+                                {articulos.length === 0 ? (
+                                    <option value="">No hay materiales registrados en el catálogo</option>
+                                ) : (
+                                    articulos.map((a) => {
                                         const aId = a.id_articulo || a.id;
                                         const cod = a.codigo_barra || a.codigo_interno || `ART-${aId}`;
                                         return (
                                             <option key={aId} value={aId}>
-                                                {a.nombre} ({cod}) - Stock actual: {a.stock_disponible}
+                                                {a.nombre} ({cod}) | Stock actual: {a.stock_disponible}
                                             </option>
-                                        );
-                                    })}
-                                </select>
-                            </div>
+                                        )
+                                    })
+                                )}
+                            </select>
+                        </div>
 
+                        <div className="facturas-grid-row-2">
                             <div>
-                                <label className="facturas-label">Cantidad Recibida</label>
+                                <label className="facturas-label">Cantidad Comprada</label>
                                 <input
                                     type="number"
                                     min="1"
+                                    max="1000000"
                                     value={cantidad}
-                                    onChange={(e) => setCantidad(Number(e.target.value))}
+                                    onChange={(e) => setCantidad(e.target.value === '' ? '' : Number(e.target.value))}
                                     className="facturas-input"
                                     required
                                 />
@@ -196,17 +256,44 @@ export default function FacturasComprasView({ proveedores: provProp = null, arti
                                 <input
                                     type="number"
                                     min="1"
+                                    max="999999999"
                                     value={precioUnitario}
-                                    onChange={(e) => setPrecioUnitario(Number(e.target.value))}
+                                    onChange={(e) => setPrecioUnitario(e.target.value === '' ? '' : Number(e.target.value))}
                                     className="facturas-input"
                                     required
                                 />
                             </div>
                         </div>
 
-                        <div className='facturas-info-box'>
-                            Al confirmar el ingreso de esta factura, el sistema sumará automáticamente las unidades recibidas
-                            al stock disponible en bodega y dejará registrado el movimiento de entrada en el Historial General.
+                        <div className="facturas-grid-row-2">
+                            <div>
+                                <label className="facturas-label">Fecha de Factura</label>
+                                <input
+                                    type="date"
+                                    value={fechaIngreso}
+                                    onChange={(e) => setFechaIngreso(e.target.value)}
+                                    className="facturas-input"
+                                    required
+                                />
+                            </div>
+
+                            <div>
+                                <label className="facturas-label">Observaciones (Opcional)</label>
+                                <input
+                                    type="text"
+                                    maxLength={250}
+                                    value={observaciones}
+                                    onChange={(e) => setObservaciones(e.target.value)}
+                                    className="facturas-input"
+                                    placeholder="Ej: Compra directa con despacho a bodega..."
+                                />
+                            </div>
+                        </div>
+
+                        <div className="facturas-info-box">
+                            {esFinanzas
+                                ? 'Al guardar esta compra, la factura quedará registrada en Finanzas y se creará automáticamente un pedido "En camino" para que Bodega confirme la llegada física antes de sumar el stock.'
+                                : 'Al confirmar esta factura como Administración, las unidades se sumarán directamente al stock disponible en bodega y quedará registrada la entrada en el Historial General.'}
                         </div>
                     </div>
                 </div>
@@ -227,7 +314,7 @@ export default function FacturasComprasView({ proveedores: provProp = null, arti
                                         min="0"
                                         max="99"
                                         value={d1}
-                                        onChange={(e) => setD1(Number(e.target.value))}
+                                        onChange={(e) => setD1(e.target.value === '' ? 0 : Number(e.target.value))}
                                         className="facturas-discount-input"
                                     />
                                 </div>
@@ -239,7 +326,7 @@ export default function FacturasComprasView({ proveedores: provProp = null, arti
                                         min="0"
                                         max="99"
                                         value={d2}
-                                        onChange={(e) => setD2(Number(e.target.value))}
+                                        onChange={(e) => setD2(e.target.value === '' ? 0 : Number(e.target.value))}
                                         className="facturas-discount-input"
                                     />
                                 </div>
@@ -251,7 +338,7 @@ export default function FacturasComprasView({ proveedores: provProp = null, arti
                                         min="0"
                                         max="99"
                                         value={d3}
-                                        onChange={(e) => setD3(Number(e.target.value))}
+                                        onChange={(e) => setD3(e.target.value === '' ? 0 : Number(e.target.value))}
                                         className="facturas-discount-input"
                                     />
                                 </div>
@@ -278,9 +365,16 @@ export default function FacturasComprasView({ proveedores: provProp = null, arti
                         </div>
                     </div>
 
-                    <button type="submit" className="facturas-btn-submit">
+                    <button type="submit" disabled={enviando || sinDatosBase} className="facturas-btn-submit">
                         <Plus size={18} />
-                        <span>Guardar Factura y Sumar al Stock de Bodega</span>
+                        <span>
+                            {enviando
+                                ? 'Guardando Factura...'
+                                : esFinanzas
+                                ? 'Guardar Factura y Enviar a Recepción en Bodega'
+                                : 'Guardar Factura y Sumar al Stock de Bodega'
+                            }
+                        </span>
                     </button>
                 </div>
             </form>

@@ -1,7 +1,6 @@
-import React, { use, useEffect, useState } from "react";
-import { Building2, Truck, Receipt, PieChart, Plus, Search, Edit2, Trash2, } from "lucide-react";
-import { obtenerClientes, crearCliente, actualizarCliente, eliminarCliente, obtenerProveedores, crearProveedor, actualizarProveedor, eliminarProveedor, obtenerArticulos, actualizarArticulo, crearFactura } from '../services_api/inventarioService';
-import { crearMovimientoCardex } from "../services_api/obrasService";
+import React, { useEffect, useState } from "react";
+import { Building2, Truck, Receipt, PieChart, Plus, Search, Edit2, Trash2, Download } from "lucide-react";
+import { obtenerClientes, crearCliente, actualizarCliente, eliminarCliente, obtenerProveedores, crearProveedor, actualizarProveedor, eliminarProveedor, obtenerArticulos, crearFactura } from '../services_api/inventarioService';
 import { formatearRutVisual, limpiarRutParaGuardar } from './GestionUsuariosView'
 import FacturasComprasView from "../components/FacturasComprasView";
 import FinanzasView from './FinanzasView'
@@ -28,6 +27,10 @@ const proveedorInicial = {
     ciudad: '',
 };
 
+// Protege cada celda antes de guardarla en una plantilla CSV.
+const limpiarCeldaCSV = (valor) => `"${String(valor ?? '').replace(/"/g, '""')}"`;
+
+// Pantalla de administración comercial para Clientes, Proveedores, Facturas y Gastos.
 const ComprasView = ({ usuario }) => {
     const [pestana, setPestana] = useState('clientes');
     const [clientes, setClientes] = useState([]);
@@ -48,16 +51,20 @@ const ComprasView = ({ usuario }) => {
     const [error, setError] = useState('');
 
     const puedeEditar = ['administracion', 'encargado_finanza'].includes(usuario?.rol);
+    const puedeEliminar = usuario?.rol === 'administracion';
     const puedeVerFinanzas = ['administracion', 'encargado_finanza'].includes(usuario?.rol);
 
+    // Extrae un aviso entendible cuando el servidor rechaza un dato.
     const formatearErrorAPI = (err, fallback) => {
         const data = err.response?.data;
+        if (typeof data?.detail === 'string') return data.detail;
         if (data && typeof data === 'object') {
             return Object.values(data).flat().join(' ');
         }
         return fallback;
     };
 
+    // Carga clientes, proveedores y materiales desde el servidor.
     const cargarEntidades = async () => {
         setCargando(true);
         try {
@@ -79,6 +86,13 @@ const ComprasView = ({ usuario }) => {
     useEffect(() => {
         cargarEntidades();
     }, []);
+
+    // Cambia entre pestañas.
+    const cambiarPestana = (nuevaPestana) => {
+        setPestana(nuevaPestana);
+        setMensaje('');
+        setError('');
+    };
 
     const abrirModalNuevoCliente = () => {
         setEditClienteId(null);
@@ -115,13 +129,20 @@ const ComprasView = ({ usuario }) => {
         setModalProveedorAbierto(true);
     };
 
+    // Guarda un cliente nuevo o actualiza uno existente.
     const guardarClienteForm = async (e) => {
         e.preventDefault();
         setError('');
         setMensaje('');
         const datosCliente = {
-            ...formCliente,
             rut: limpiarRutParaGuardar(formCliente.rut),
+            razon_social: formCliente.razon_social.trim(),
+            giro_comercial: formCliente.giro_comercial.trim(),
+            direccion: formCliente.direccion.trim(),
+            region: formCliente.region.trim(),
+            comuna: formCliente.comuna.trim(),
+            ciudad: formCliente.ciudad.trim(),
+            nombre_representante: formCliente.nombre_representante.trim(),
             rut_representante: limpiarRutParaGuardar(formCliente.rut_representante),
         };
         try {
@@ -146,8 +167,12 @@ const ComprasView = ({ usuario }) => {
         setError('');
         setMensaje('');
         const datosProveedor = {
-            ...formProveedor,
             rut: limpiarRutParaGuardar(formProveedor.rut),
+            razon_social: formProveedor.razon_social.trim(),
+            direccion: formProveedor.direccion.trim(),
+            region: formProveedor.region.trim(),
+            comuna: formProveedor.comuna.trim(),
+            ciudad: formProveedor.ciudad.trim(),
         };
         try {
             if (editProveedorId) {
@@ -166,6 +191,7 @@ const ComprasView = ({ usuario }) => {
         }
     };
 
+    // Elimina un cliente solo si no tiene obras registradas en el sistema.
     const manejarEliminarCliente = async (idCliente, razonSocial) => {
         if (!window.confirm(`¿Está seguro de eliminar al cliente "${razonSocial}"?`)) return;
         setError('');
@@ -174,11 +200,17 @@ const ComprasView = ({ usuario }) => {
             await eliminarCliente(idCliente);
             setMensaje('Cliente eliminado correctamente.');
             await cargarEntidades();
-        } catch {
-            setError('No se puede eliminar este cliente porque ya tiene obras asociadas en el sistema.');
+        } catch (err) {
+            setError(
+                formatearErrorAPI(
+                    err,
+                    'No se puede eliminar este cliente porque ya tiene obras asociadas en el sistema.'
+                )
+            );
         }
     };
 
+    // Elimina un proveedor solo si no tiene facturas registradas en el sistema.
     const manejarEliminarProveedor = async (idProveedor, razonSocial) => {
         if (!window.confirm(`¿Está seguro de eliminar al proveedor "${razonSocial}"?`)) return;
         setError('');
@@ -187,64 +219,67 @@ const ComprasView = ({ usuario }) => {
             await eliminarProveedor(idProveedor);
             setMensaje('Proveedor eliminado correctamente.');
             await cargarEntidades();
-        } catch {
-            setError('No se puede eliminar este proveedor porque ya tiene facturas registradas.');
+        } catch (err) {
+            setError(
+                formatearErrorAPI(
+                    err,
+                    'No se puede eliminar este proveedor porque ya tiene facturas registradas en el sistema.'
+                )
+            );
         }
     };
 
+    // Envía la factura de compra directamente al servidor y actualiza datos.
     const manejarRegistroFactura = async (facturaData) => {
         setError('');
         setMensaje('');
-        try {
-            await crearFactura({
-                id_proveedor: facturaData.id_proveedor,
-                numero_documento: facturaData.numero_documento,
-                id_articulo: facturaData.articulo_id,
-                cantidad: Number(facturaData.cantidad),
-                precio_unitario: Number(facturaData.precio_unitario),
-                total: Number(facturaData.total),
-                observaciones: facturaData.motivo,
-            });
-        } catch {
-            const artObjetivo = articulos.find(
-                (a) => String(a.id_articulo) === String(facturaData.articulo_id)
+
+        const res = await crearFactura({
+            id_proveedor: facturaData.id_proveedor,
+            numero_documento: facturaData.numero_documento,
+            fecha_ingreso: facturaData.fecha_ingreso,
+            id_articulo: facturaData.articulo_id,
+            cantidad: Number(facturaData.cantidad),
+            precio_unitario: Number(facturaData.precio_unitario),
+            descuento_1: Number(facturaData.descuento_1 || 0),
+            descuento_2: Number(facturaData.descuento_2 || 0),
+            descuento_3: Number(facturaData.descuento_3 || 0),
+            observaciones: facturaData.observaciones || '',
+        });
+
+        if (res.data?.pendiente_recepcion) {
+            setMensaje(
+                `Factura ${facturaData.documento} registrada en gastos. Se creó un pedido "En camino" para que Bodega confirme la llegada física antes de sumar el stock.`
             );
-
-            if (artObjetivo) {
-                const nuevoStock = Number(artObjetivo.stock_disponible) + Number(facturaData.cantidad);
-                await actualizarArticulo(artObjetivo.id_articulo, {
-                    ...artObjetivo,
-                    stock_disponible: nuevoStock,
-                });
-            }
-
-            await crearMovimientoCardex({
-                id_articulo: facturaData.articulo_id,
-                id_usuario: usuario?.id_usuario,
-                usuario_responsable: usuario?.nombre || 'Encargado de Bodega',
-                cargo: usuario?.rol || 'Bodega',
-                articulo_nombre: facturaData.articulo_nombre,
-                articulo_codigo: artObjetivo?.codigo_barra || `ART-${facturaData.articulo_id}`,
-                articulo_detalle: 'Recepción Factura Proveedor',
-                cantidad: Number(facturaData.cantidad),
-                unidad_medida: artObjetivo?.unidad_nombre || 'un',
-                tipo_movimiento: 'Entrada',
-                obra_destino: 'Bodega Central',
-                documento_respaldo: facturaData.documento,
-                motivo: facturaData.motivo || `Recepción ${facturaData.documento}`,
-            });
+        } else {
+            setMensaje(
+                `Factura ${facturaData.documento} registrada con éxito. Se sumaron ${facturaData.cantidad} unidades al stock de bodega.`
+            );
+            window.dispatchEvent(new Event('fyag_inventario_actualizado'));
         }
 
-        setMensaje(
-            `Factura ${facturaData.documento} registrada con éxito. Se sumaron ${facturaData.cantidad} unidades al stock.`
-        );
         await cargarEntidades();
+        return res.data;
+    };
+
+    // Descarga un archivo CSV.
+    const descargarPlanillaCSV = (nombreArchivo, encabezados, filas) => {
+        const contenido = '\uFEFF' + [encabezados.join(','), ...filas.map((f) => f.join(','))].join('\n');
+        const archivo = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(archivo);
+        const enlace = document.createElement('a');
+        enlace.href = url;
+        enlace.download = nombreArchivo;
+        document.body.appendChild(enlace);
+        enlace.click();
+        document.body.removeChild(enlace);
+        URL.revokeObjectURL(url);
     };
 
     const clientesFiltrados = clientes.filter((c) => {
         const q = busquedaCliente.toLowerCase();
         const rutPuntos = formatearRutVisual(c.rut).toLowerCase();
-        return(
+        return (
             c.razon_social?.toLowerCase().includes(q) ||
             c.rut?.toLowerCase().includes(q) ||
             rutPuntos.includes(q) ||
@@ -257,7 +292,7 @@ const ComprasView = ({ usuario }) => {
     const proveedoresFiltrados = proveedores.filter((p) => {
         const q = busquedaProveedor.toLowerCase();
         const rutPuntos = formatearRutVisual(p.rut).toLowerCase();
-        return(
+        return (
             p.razon_social?.toLowerCase().includes(q) ||
             p.rut?.toLowerCase().includes(q) ||
             rutPuntos.includes(q) ||
@@ -266,6 +301,40 @@ const ComprasView = ({ usuario }) => {
             p.comuna?.toLowerCase().includes(q)
         );
     });
+
+    // Exporta a CSV la nómina de clientes.
+    const exportarClientesCSV = () => {
+        const encabezados = [
+            'RUT Empresa', 'Razón Social', 'Giro Comercial', 'Dirección',
+            'Comuna', 'Ciudad', 'Región', 'Representante Legal', 'RUT Representante',
+        ];
+        const filas = clientesFiltrados.map((c) => [
+            limpiarCeldaCSV(formatearRutVisual(c.rut)),
+            limpiarCeldaCSV(c.razon_social),
+            limpiarCeldaCSV(c.giro_comercial),
+            limpiarCeldaCSV(c.direccion),
+            limpiarCeldaCSV(c.comuna),
+            limpiarCeldaCSV(c.ciudad),
+            limpiarCeldaCSV(c.region),
+            limpiarCeldaCSV(c.nombre_representante),
+            limpiarCeldaCSV(formatearRutVisual(c.rut_representante)),
+        ]);
+        descargarPlanillaCSV('nomina_clientes_fyag.csv', encabezados, filas);
+    };
+
+    // Exporta a CSV la nómina de proveedores.
+    const exportarProveedoresCSV = () => {
+        const encabezados = ['RUT', 'Razón Social', 'Dirección', 'Comuna', 'Ciudad', 'Región'];
+        const filas = proveedoresFiltrados.map((p) => [
+            limpiarCeldaCSV(formatearRutVisual(p.rut)),
+            limpiarCeldaCSV(p.razon_social),
+            limpiarCeldaCSV(p.direccion),
+            limpiarCeldaCSV(p.comuna),
+            limpiarCeldaCSV(p.ciudad),
+            limpiarCeldaCSV(p.region),
+        ]);
+        descargarPlanillaCSV('nomina_proveedores_fyag.csv', encabezados, filas);
+    };
 
     const modalActivo = modalClienteAbierto || modalProveedorAbierto;
 
@@ -276,7 +345,7 @@ const ComprasView = ({ usuario }) => {
                     <div>
                         <h1 className="compras-title">Clientes, Proveedores y Facturación</h1>
                         <p className="compras-subtitle">
-                            Administración de fichas comerciales de empresas, recepción de compras y control de gastos
+                            Administración de fichas comerciales de empresas, ingreso de compras y control de gastos
                         </p>
                     </div>
 
@@ -297,25 +366,25 @@ const ComprasView = ({ usuario }) => {
                 </div>
 
                 <div className="compras-tabs-bar">
-                    <button type="button" className={`compras-tab-item ${pestana === 'clientes' ? 'active' : ''}`} onClick={() => setPestana('clientes')}>
+                    <button type="button" className={`compras-tab-item ${pestana === 'clientes' ? 'active' : ''}`} onClick={() => cambiarPestana('clientes')}>
                         <Building2 size={16} />
                         <span>Clientes Mandantes</span>
                         <span className="compras-tab-count">{clientes.length}</span>
                     </button>
 
-                    <button type="button" className={`compras-tab-item ${pestana === 'proveedores' ? 'active' : ''}`} onClick={() => setPestana('proveedores')}>
+                    <button type="button" className={`compras-tab-item ${pestana === 'proveedores' ? 'active' : ''}`} onClick={() => cambiarPestana('proveedores')}>
                         <Truck size={16} />
                         <span>Proveedores</span>
                         <span className="compras-tab-count">{proveedores.length}</span>
                     </button>
 
-                    <button type="button" className={`compras-tab-item ${pestana === 'facturas' ? 'active' : ''}`} onClick={() => setPestana('facturas')}>
+                    <button type="button" className={`compras-tab-item ${pestana === 'facturas' ? 'active' : ''}`} onClick={() => cambiarPestana('facturas')}>
                         <Receipt size={16} />
                         <span>Ingreso de Facturas</span>
                     </button>
 
                     {puedeVerFinanzas && (
-                        <button type="button" className={`compras-tab-item ${pestana === 'finanzas' ? 'active' : ''}`} onClick={() => setPestana('finanzas')}>
+                        <button type="button" className={`compras-tab-item ${pestana === 'finanzas' ? 'active' : ''}`} onClick={() => cambiarPestana('finanzas')}>
                             <PieChart size={16} />
                             <span>Resumen de Gastos y Finanzas</span>
                         </button>
@@ -332,14 +401,21 @@ const ComprasView = ({ usuario }) => {
                                 <Search size={15} color="#64748b" />
                                 <input
                                     type="text"
+                                    maxLength={80}
                                     placeholder="Buscar cliente por razón social, RUT, ciudad o representante..."
                                     value={busquedaCliente}
                                     onChange={(e) => setBusquedaCliente(e.target.value)}
                                     className="compras-search-input"
                                 />
                             </div>
-                            <div className="compras-count-label">
-                                {clientesFiltrados.length} clientes registrados
+                            <div className="compras-toolbar-right">
+                                <span className="compras-count-label">
+                                    {clientesFiltrados.length} clientes registrados
+                                </span>
+                                <button type="button" onClick={exportarClientesCSV} disabled={clientesFiltrados.length === 0} className="compras-btn-export">
+                                    <Download size={14} />
+                                    <span>Exportar CSV</span>
+                                </button>
                             </div>
                         </div>
 
@@ -359,7 +435,7 @@ const ComprasView = ({ usuario }) => {
                                 <tbody>
                                     {cargando ? (
                                         <tr>
-                                            <td colSpan={puedeEditar ? 7: 6} className="compras-table-empty">
+                                            <td colSpan={puedeEditar ? 7 : 6} className="compras-table-empty">
                                                 Cargando nómina de clientes...
                                             </td>
                                         </tr>
@@ -394,10 +470,12 @@ const ComprasView = ({ usuario }) => {
                                                                 <Edit2 size={14} />
                                                                 <span>Editar</span>
                                                             </button>
-                                                            <button type="button" onClick={() => manejarEliminarCliente(c.id_cliente, c.razon_social)} className="compras-btn-delete" title="Eliminar cliente">
-                                                                <Trash2 size={14} />
-                                                                <span>Eliminar</span>
-                                                            </button>
+                                                            {puedeEliminar && (
+                                                                <button type="button" onClick={() => manejarEliminarCliente(c.id_cliente, c.razon_social)} className="compras-btn-delete" title="Eliminar cliente">
+                                                                    <Trash2 size={14} />
+                                                                    <span>Eliminar</span>
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     </td>
                                                 )}
@@ -417,14 +495,21 @@ const ComprasView = ({ usuario }) => {
                                 <Search size={15} color="#64748b" />
                                 <input
                                     type="text"
+                                    maxLength={80}
                                     placeholder="Buscar proveedor por razón social, RUT, dirección o ciudad..."
                                     value={busquedaProveedor}
                                     onChange={(e) => setBusquedaProveedor(e.target.value)}
                                     className="compras-search-input"
                                 />
                             </div>
-                            <div className="compras-count-label">
-                                {proveedoresFiltrados.length} proveedores registrados
+                            <div className="compras-toolbar-right">
+                                <span className="compras-count-label">
+                                    {proveedoresFiltrados.length} proveedores registrados
+                                </span>
+                                <button type="button" onClick={exportarProveedoresCSV} disabled={proveedoresFiltrados.length === 0} className="compras-btn-export">
+                                    <Download size={14} />
+                                    <span>Exportar CSV</span>
+                                </button>
                             </div>
                         </div>
 
@@ -474,10 +559,12 @@ const ComprasView = ({ usuario }) => {
                                                                     <Edit2 size={14} />
                                                                     <span>Editar</span>
                                                                 </button>
-                                                                <button type="button" onClick={() => manejarEliminarProveedor(idProv, p.razon_social)} className="compras-btn-delete" title="Eliminar proveedor">
-                                                                    <Trash2 size={14} />
-                                                                    <span>Eliminar</span>
-                                                                </button>
+                                                                {puedeEliminar && (
+                                                                    <button type="button" onClick={() => manejarEliminarProveedor(idProv, p.razon_social)} className="compras-btn-delete" title="Eliminar proveedor">
+                                                                        <Trash2 size={14} />
+                                                                        <span>Eliminar</span>
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </td>
                                                     )}
@@ -495,13 +582,12 @@ const ComprasView = ({ usuario }) => {
                     <FacturasComprasView
                         proveedores={proveedores}
                         articulos={articulos}
+                        usuario={usuario}
                         onRegistrarFactura={manejarRegistroFactura}
                     />
                 )}
 
-                {pestana === 'finanzas' && puedeVerFinanzas && (
-                    <FinanzasView proveedores={proveedores} clientes={clientes} />
-                )}
+                {pestana === 'finanzas' && puedeVerFinanzas && <FinanzasView />}
 
                 {modalClienteAbierto && (
                     <div className="compras-modal-overlay">
@@ -510,7 +596,13 @@ const ComprasView = ({ usuario }) => {
                                 <div className="compras-modal-title">
                                     {editClienteId ? 'Modificar Datos del Cliente' : 'Registrar Nuevo Cliente'}
                                 </div>
-                                <button type="button" onClick={() => setModalClienteAbierto(false)} className="compras-modal-close">X</button>
+                                <button
+                                    type="button"
+                                    onClick={() => setModalClienteAbierto(false)}
+                                    className="compras-modal-close"
+                                >
+                                    X
+                                </button>
                             </div>
 
                             <form onSubmit={guardarClienteForm} className="compras-modal-form">
@@ -522,9 +614,15 @@ const ComprasView = ({ usuario }) => {
                                         <input
                                             type="text"
                                             required
+                                            maxLength={12}
                                             placeholder="Ej: 76.123.456-7"
                                             value={formCliente.rut}
-                                            onChange={(e) => setFormCliente({ ...formCliente, rut: formatearRutVisual(e.target.value), })}
+                                            onChange={(e) =>
+                                                setFormCliente({
+                                                    ...formCliente,
+                                                    rut: formatearRutVisual(e.target.value),
+                                                })
+                                            }
                                             className="compras-form-input"
                                         />
                                     </div>
@@ -534,9 +632,13 @@ const ComprasView = ({ usuario }) => {
                                         <input
                                             type="text"
                                             required
+                                            minLength={3}
+                                            maxLength={120}
                                             placeholder="Ej: Agroindustrial del Sur SpA"
                                             value={formCliente.razon_social}
-                                            onChange={(e) => setFormCliente({ ...formCliente, razon_social: e.target.value, })}
+                                            onChange={(e) =>
+                                                setFormCliente({ ...formCliente, razon_social: e.target.value })
+                                            }
                                             className="compras-form-input"
                                         />
                                     </div>
@@ -546,9 +648,13 @@ const ComprasView = ({ usuario }) => {
                                         <input
                                             type="text"
                                             required
+                                            minLength={3}
+                                            maxLength={120}
                                             placeholder="Ej: Exportación y Frigorífico de Frutas"
                                             value={formCliente.giro_comercial}
-                                            onChange={(e) => setFormCliente({ ...formCliente, giro_comercial: e.target.value, })}
+                                            onChange={(e) =>
+                                                setFormCliente({ ...formCliente, giro_comercial: e.target.value })
+                                            }
                                             className="compras-form-input"
                                         />
                                     </div>
@@ -558,9 +664,13 @@ const ComprasView = ({ usuario }) => {
                                         <input
                                             type="text"
                                             required
+                                            minLength={5}
+                                            maxLength={150}
                                             placeholder="Ej: Ruta 5 Sur Km 402"
                                             value={formCliente.direccion}
-                                            onChange={(e) => setFormCliente({ ...formCliente, direccion: e.target.value, })}
+                                            onChange={(e) =>
+                                                setFormCliente({ ...formCliente, direccion: e.target.value })
+                                            }
                                             className="compras-form-input"
                                         />
                                     </div>
@@ -570,9 +680,13 @@ const ComprasView = ({ usuario }) => {
                                         <input
                                             type="text"
                                             required
+                                            minLength={2}
+                                            maxLength={80}
                                             placeholder="Ej: Ñuble"
                                             value={formCliente.region}
-                                            onChange={(e) => setFormCliente({ ...formCliente, region: e.target.value, })}
+                                            onChange={(e) =>
+                                                setFormCliente({ ...formCliente, region: e.target.value })
+                                            }
                                             className="compras-form-input"
                                         />
                                     </div>
@@ -582,9 +696,13 @@ const ComprasView = ({ usuario }) => {
                                         <input
                                             type="text"
                                             required
+                                            minLength={2}
+                                            maxLength={80}
                                             placeholder="Ej: Chillán"
                                             value={formCliente.comuna}
-                                            onChange={(e) => setFormCliente({ ...formCliente, comuna: e.target.value, })}
+                                            onChange={(e) =>
+                                                setFormCliente({ ...formCliente, comuna: e.target.value })
+                                            }
                                             className="compras-form-input"
                                         />
                                     </div>
@@ -594,9 +712,13 @@ const ComprasView = ({ usuario }) => {
                                         <input
                                             type="text"
                                             required
+                                            minLength={2}
+                                            maxLength={80}
                                             placeholder="Ej: Chillán"
                                             value={formCliente.ciudad}
-                                            onChange={(e) => setFormCliente({ ...formCliente, ciudad: e.target.value, })}
+                                            onChange={(e) =>
+                                                setFormCliente({ ...formCliente, ciudad: e.target.value })
+                                            }
                                             className="compras-form-input"
                                         />
                                     </div>
@@ -606,9 +728,16 @@ const ComprasView = ({ usuario }) => {
                                         <input
                                             type="text"
                                             required
+                                            minLength={3}
+                                            maxLength={80}
                                             placeholder="Ej: Juan Pérez"
                                             value={formCliente.nombre_representante}
-                                            onChange={(e) => setFormCliente({ ...formCliente, nombre_representante: e.target.value, })}
+                                            onChange={(e) =>
+                                                setFormCliente({
+                                                    ...formCliente,
+                                                    nombre_representante: e.target.value,
+                                                })
+                                            }
                                             className="compras-form-input"
                                         />
                                     </div>
@@ -618,16 +747,28 @@ const ComprasView = ({ usuario }) => {
                                         <input
                                             type="text"
                                             required
+                                            maxLength={12}
                                             placeholder="Ej: 12.345.678-9"
                                             value={formCliente.rut_representante}
-                                            onChange={(e) => setFormCliente({ ...formCliente, rut_representante: formatearRutVisual(e.target.value), })}
+                                            onChange={(e) =>
+                                                setFormCliente({
+                                                    ...formCliente,
+                                                    rut_representante: formatearRutVisual(e.target.value),
+                                                })
+                                            }
                                             className="compras-form-input"
                                         />
                                     </div>
                                 </div>
 
                                 <div className="compras-modal-actions">
-                                    <button type="button" onClick={() => setModalClienteAbierto(false)} className="compras-btn-cancel">Cancelar</button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setModalClienteAbierto(false)}
+                                        className="compras-btn-cancel"
+                                    >
+                                        Cancelar
+                                    </button>
                                     <button type="submit" className="compras-btn-submit">
                                         {editClienteId ? 'Guardar Cambios' : 'Registrar Cliente'}
                                     </button>
@@ -644,7 +785,13 @@ const ComprasView = ({ usuario }) => {
                                 <div className="compras-modal-title">
                                     {editProveedorId ? 'Modificar Datos del Proveedor' : 'Registrar Nuevo Proveedor'}
                                 </div>
-                                <button type="button" onClick={() => setModalProveedorAbierto(false)} className="compras-modal-close">X</button>
+                                <button
+                                    type="button"
+                                    onClick={() => setModalProveedorAbierto(false)}
+                                    className="compras-modal-close"
+                                >
+                                    X
+                                </button>
                             </div>
 
                             <form onSubmit={guardarProveedorForm} className="compras-modal-form">
@@ -656,9 +803,15 @@ const ComprasView = ({ usuario }) => {
                                         <input
                                             type="text"
                                             required
+                                            maxLength={12}
                                             placeholder="Ej: 76.543.210-K"
                                             value={formProveedor.rut}
-                                            onChange={(e) => setFormProveedor({ ...formProveedor, rut: formatearRutVisual(e.target.value), })}
+                                            onChange={(e) =>
+                                                setFormProveedor({
+                                                    ...formProveedor,
+                                                    rut: formatearRutVisual(e.target.value),
+                                                })
+                                            }
                                             className="compras-form-input"
                                         />
                                     </div>
@@ -668,9 +821,13 @@ const ComprasView = ({ usuario }) => {
                                         <input
                                             type="text"
                                             required
+                                            minLength={3}
+                                            maxLength={120}
                                             placeholder="Ej: Gases y Refrigerantes Biobío"
                                             value={formProveedor.razon_social}
-                                            onChange={(e) => setFormProveedor({ ...formProveedor, razon_social: e.target.value, })}
+                                            onChange={(e) =>
+                                                setFormProveedor({ ...formProveedor, razon_social: e.target.value })
+                                            }
                                             className="compras-form-input"
                                         />
                                     </div>
@@ -680,9 +837,13 @@ const ComprasView = ({ usuario }) => {
                                         <input
                                             type="text"
                                             required
+                                            minLength={5}
+                                            maxLength={150}
                                             placeholder="Ej: Av. O'Higgins 850"
                                             value={formProveedor.direccion}
-                                            onChange={(e) => setFormProveedor({ ...formProveedor, direccion: e.target.value, })}
+                                            onChange={(e) =>
+                                                setFormProveedor({ ...formProveedor, direccion: e.target.value })
+                                            }
                                             className="compras-form-input"
                                         />
                                     </div>
@@ -692,9 +853,13 @@ const ComprasView = ({ usuario }) => {
                                         <input
                                             type="text"
                                             required
+                                            minLength={2}
+                                            maxLength={80}
                                             placeholder="Ej: Ñuble"
                                             value={formProveedor.region}
-                                            onChange={(e) => setFormProveedor({ ...formProveedor, region: e.target.value, })}
+                                            onChange={(e) =>
+                                                setFormProveedor({ ...formProveedor, region: e.target.value })
+                                            }
                                             className="compras-form-input"
                                         />
                                     </div>
@@ -704,9 +869,13 @@ const ComprasView = ({ usuario }) => {
                                         <input
                                             type="text"
                                             required
+                                            minLength={2}
+                                            maxLength={80}
                                             placeholder="Ej: Chillán"
                                             value={formProveedor.comuna}
-                                            onChange={(e) => setFormProveedor({ ...formProveedor, comuna: e.target.value, })}
+                                            onChange={(e) =>
+                                                setFormProveedor({ ...formProveedor, comuna: e.target.value })
+                                            }
                                             className="compras-form-input"
                                         />
                                     </div>
@@ -716,16 +885,26 @@ const ComprasView = ({ usuario }) => {
                                         <input
                                             type="text"
                                             required
+                                            minLength={2}
+                                            maxLength={80}
                                             placeholder="Ej: Chillán"
                                             value={formProveedor.ciudad}
-                                            onChange={(e) => setFormProveedor({ ...formProveedor, ciudad: e.target.value, })}
+                                            onChange={(e) =>
+                                                setFormProveedor({ ...formProveedor, ciudad: e.target.value })
+                                            }
                                             className="compras-form-input"
                                         />
                                     </div>
                                 </div>
 
                                 <div className="compras-modal-actions">
-                                    <button type="button" onClick={() => setModalProveedorAbierto(false)} className="compras-btn-cancel">Cancelar</button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setModalProveedorAbierto(false)}
+                                        className="compras-btn-cancel"
+                                    >
+                                        Cancelar
+                                    </button>
                                     <button type="submit" className="compras-btn-submit">
                                         {editProveedorId ? 'Guardar Cambios' : 'Registrar Proveedor'}
                                     </button>
@@ -734,7 +913,6 @@ const ComprasView = ({ usuario }) => {
                         </div>
                     </div>
                 )}
-
             </div>
         </div>
     );

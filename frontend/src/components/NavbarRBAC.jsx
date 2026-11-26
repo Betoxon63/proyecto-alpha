@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Bell, Package, History, Truck, Briefcase, Building2, Users, LogOut, Menu, X, ChevronLeft, ChevronRight, } from 'lucide-react';
+import { Bell, Package, ClipboardList, History, Truck, Briefcase, Building2, Users, LogOut, Menu, X, ChevronLeft, ChevronRight, } from 'lucide-react';
 import { logoutUsuario } from '../services_api/authService';
 import logoFyag from '../assets/logo.png';
 import '../styles/NavbarRBAC.css'
@@ -58,10 +58,16 @@ const NavbarRBAC = ({
             roles: ['administracion', 'encargado_bodega', 'encargado_finanza', 'supervisor_obra'],
         },
         {
+            ruta: '/solicitudes',
+            etiqueta: 'Solicitudes de Compra',
+            icono: ClipboardList,
+            roles: ['administracion', 'encargado_bodega', 'encargado_finanza'],
+        },
+        {
             ruta: '/cardex',
             etiqueta: 'Historial de Movimientos',
             icono: History,
-            roles: ['administracion', 'encargado_bodega', 'encargado_finanza', 'soporte_ti'],
+            roles: ['administracion', 'encargado_bodega', 'encargado_finanza'],
         },
         {
             ruta: '/obras/despachos',
@@ -80,7 +86,7 @@ const NavbarRBAC = ({
             ruta: '/entidades',
             etiqueta: 'Clientes y Proveedores',
             icono: Building2,
-            roles: ['administracion', 'encargado_bodega', 'encargado_finanza'],
+            roles: ['administracion', 'encargado_finanza'],
         },
         {
             ruta: '/admin/usuarios',

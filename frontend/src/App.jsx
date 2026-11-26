@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import NavbarRBAC from './components/NavbarRBAC';
 import StockAlertModal from './components/StockAlertModal';
@@ -7,11 +7,11 @@ import TablaCardex from './components/TablaCardex';
 import LoginView, { obtenerRutaInicial } from './pages/LoginView';
 import DashboardView from './pages/DashboardView';
 import CatalogoView from './pages/CatalogoView';
-import TabletBodegaView from './pages/TabletBodegaView';
 import DespachoObra from './pages/DespachoObra';
 import SupervisorObraView from './pages/SupervisorObraView';
 import ComprasView from './pages/ComprasView';
 import FinanzasView from './pages/FinanzasView';
+import SolicitudesView from './pages/SolicitudesView';
 import GestionUsuariosView from './pages/GestionUsuariosView';
 import DesktopAdminCardexView from './pages/DesktopAdminCardexView';
 import { ObrasPage } from './pages/Obras';
@@ -56,6 +56,17 @@ function AppContent() {
     const [sidebarExpandida, setSidebarExpandida] = useState(false);
     const navigate = useNavigate();
 
+    // Consulta el inventaio actual para mantener actualizado el contador de alertas de la barra lateral.
+    const recargarAlertasStock = useCallback((rolUsuario) => {
+        if (!rolUsuario || !CARGOS_AVISO_STOCK.includes(rolUsuario)) {
+            setArticulosGlobal([]);
+            return;
+        }
+        obtenerArticulos()
+            .then((res) => setArticulosGlobal(res.data || []))
+            .catch(() => setArticulosGlobal([]));
+    }, []);
+
     // Cada vez que cambia el usuario, carga alertas de stock y activa el cierre por inactividad.
     useEffect(() => {
         if (!usuario) {
@@ -64,13 +75,10 @@ function AppContent() {
             return;
         }
 
-        if (CARGOS_AVISO_STOCK.includes(usuario.rol)) {
-            obtenerArticulos()
-                .then((res) => setArticulosGlobal(res.data || []))
-                .catch(() => setArticulosGlobal([]));
-        } else {
-            setArticulosGlobal([]);
-        }
+        recargarAlertasStock(usuario.rol);
+
+        const manejarActualizacionStock = () => recargarAlertasStock(usuario.rol);
+        window.addEventListener('fyag_inventario_actualizado', manejarActualizacionStock);
 
         // Cierra la sesión automáticamente tras 15 minutos sin actividad en pantalla.
         const limpiarMonitor = iniciarMonitorInactividad(() => {
@@ -80,8 +88,11 @@ function AppContent() {
             );
         });
 
-        return limpiarMonitor;
-    }, [usuario]);
+        return () => {
+            window.removeEventListener('fyag_inventario_actualizado', manejarActualizacionStock);
+            limpiarMonitor();
+        };
+    }, [usuario, recargarAlertasStock]);
 
     // Limpia los datos en memoria al cerrar sesión manualmente.
     const manejarLogout = () => {
@@ -152,13 +163,17 @@ function AppContent() {
             />
 
             <Route
-                path='/bodega/movimientos'
+                path='/solicitudes'
                 element={
                     <RutaProtegidaRBAC
                         usuario={usuario}
-                        rolesPermitidos={['administracion', 'encargado_bodega']}
+                        rolesPermitidos={[
+                            'administracion',
+                            'encargado_bodega',
+                            'encargado_finanza',
+                        ]}
                     >
-                        <TabletBodegaView currentUser={usuario} />
+                        <SolicitudesView usuario={usuario} />
                     </RutaProtegidaRBAC>
                 }
             />
@@ -172,7 +187,6 @@ function AppContent() {
                             'administracion',
                             'encargado_bodega',
                             'encargado_finanza',
-                            'soporte_ti',
                         ]}
                     >
                         <div className='contenedor-vista'>
@@ -236,7 +250,7 @@ function AppContent() {
                 element={
                     <RutaProtegidaRBAC
                         usuario={usuario}
-                        rolesPermitidos={['administracion', 'encargado_finanza', 'encargado_bodega']}
+                        rolesPermitidos={['administracion', 'encargado_finanza']}
                     >
                         <ComprasView usuario={usuario} />
                     </RutaProtegidaRBAC>
@@ -317,6 +331,7 @@ function AppContent() {
                 isOpen={modalStockOpen}
                 onClose={() => setModalStockOpen(false)}
                 articulos={articulosGlobal}
+                usuario={usuario}
                 onNavigateToBodega={() => navigate('/bodega/inventario')}
             />
         </div>

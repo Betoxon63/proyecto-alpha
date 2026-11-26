@@ -35,6 +35,16 @@ export const eliminarProveedor = (id) => api.delete(`/proveedores/${id}/`);
 export const obtenerFacturas = () => api.get('/facturas/');
 export const crearFactura = (datos) => api.post('/facturas/', datos);
 
+// Flujo de solicitudes de reposición entre Bodega y Finanzas.
+export const obtenerSolicitudes = () => api.get('/solicitudes/');
+export const crearSolicitud = (datos) => api.post('/solicitudes/', datos);
+export const aprobarCompraSolicitud = (id, datos) => 
+    api.post(`/solicitudes/${id}/aprobar-compra/`, datos);
+export const rechazarSolicitud = (id, datos) => 
+    api.post(`/solicitudes/${id}/rechazar/`, datos);
+export const confirmarRecepcionSolicitud = (id) => 
+    api.post(`/solicitudes/${id}/confirmar-recepcion/`);
+
 // Administración de cuentas de trabajadores y cargos disponibles.
 export const obtenerUsuarios = () => api.get('/usuarios/');
 export const crearUsuario = (datos) => api.post('/usuarios/', datos);

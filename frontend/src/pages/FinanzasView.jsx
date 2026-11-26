@@ -1,583 +1,264 @@
 import React, { useState, useEffect } from 'react';
-import { Receipt, Building2, CreditCard, Edit2, Lock, Download } from 'lucide-react';
-import {
-    obtenerProveedores,
-    actualizarProveedor,
-    obtenerClientes,
-    actualizarCliente,
-    obtenerFacturas,
-} from '../services_api/inventarioService';
-import { formatearRutVisual, limpiarRutParaGuardar } from './GestionUsuariosView';
+import { Search, Download, Calendar } from 'lucide-react';
+import { obtenerFacturas } from '../services_api/inventarioService';
 import '../styles/FinanzasView.css';
 
-export default function FinanzasView({
-    proveedores: provProp = null,
-    clientes: cliProp = null,
-    facturas: facProp = null,
-}) {
-    const [activeSubTab, setActiveSubTab] = useState('gastos');
-    const [listaProveedores, setListaProveedores] = useState(provProp || []);
-    const [listaClientes, setListaClientes] = useState(cliProp || []);
-    const [facturasComprasMes, setFacturasComprasMes] = useState(facProp || []);
-    const [editingProveedor, setEditingProveedor] = useState(null);
-    const [editingCliente, setEditingCliente] = useState(null);
-    const [mensaje, setMensaje] = useState('');
+// Meses para filtrar.
+const NOMBRES_MESES = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+];
+
+// Formatea la fecha (Ej: "2026-11" a "Noviembre 2026").
+const formatearMes = (claveMes) => {
+    const [anio, mes] = String(claveMes || '').split('-');
+    const indice = Number(mes) - 1;
+    if (!anio || indice < 0 || indice > 11) return claveMes;
+    return `${NOMBRES_MESES[indice]} ${anio}`;
+};
+
+// Protege cada celda antes de guardarla en una plantilla CSV.
+const limpiarCeldaCSV = (valor) => `"${String(valor ?? '').replace(/"/g, '""')}"`;
+
+// Pantalla de resumen de gastos en facturas de compra.
+export default function FinanzasView() {
+    const [facturas, setFacturas] = useState([]);
+    const [mesSeleccionado, setMesSeleccionado] = useState('todos');
+    const [busqueda, setBusqueda] = useState('');
+    const [cargando, setCargando] = useState(true);
     const [errorMsg, setErrorMsg] = useState('');
 
-    const cargarEntidadesReales = async () => {
+    // Consulta todas las facturas guardadas en el servidor.
+    const cargarFacturas = async () => {
+        setCargando(true);
+        setErrorMsg('');
         try {
-            const [resProv, resCli, resFac] = await Promise.all([
-                obtenerProveedores(),
-                obtenerClientes(),
-                obtenerFacturas().catch(() => ({ data: [] })),
-            ]);
-            setListaProveedores(resProv.data || []);
-            setListaClientes(resCli.data || []);
+            const resFac = await obtenerFacturas();
+            const lista = Array.isArray(resFac.data) ? resFac.data : [];
 
-            if (Array.isArray(resFac.data)) {
-                const adaptadas = resFac.data.map((f) => {
-                    const totalFac = Number(f.total || 0);
-                    const netoFac = Math.round(totalFac / 1.19);
-                    const ivaFac = totalFac - netoFac;
-                    const primerDetalle = f.detalles?.[0];
-                    const textoDetalle = primerDetalle
-                        ? `${primerDetalle.cantidad}x ${primerDetalle.articulo_nombre}`
-                        : f.observaciones || 'Compra de materiales';
-                    return {
-                        id: `FAC-${f.numero_documento}`,
-                        fecha: f.fecha_ingreso,
-                        proveedor: f.proveedor_nombre || 'Proveedor',
-                        detalle: textoDetalle,
-                        neto: netoFac,
-                        iva: ivaFac,
-                        total: totalFac,
-                        estado: 'Pagada',
-                    };
-                });
-                setFacturasComprasMes(adaptadas);
-            }
+            const adaptadas = lista.map((f) => {
+                const totalFac = Number(f.total || 0);
+                const netoFac = Math.round(totalFac / 1.19);
+                const ivaFac = totalFac - netoFac;
+                const primerDetalle = f.detalles?.[0];
+                const unidadTxt = primerDetalle?.unidad_nombre ? ` ${primerDetalle.unidad_nombre}` : 'x';
+                const textoDetalle = primerDetalle
+                    ? `${primerDetalle.cantidad}${unidadTxt} | ${primerDetalle.articulo_nombre}`
+                    : f.observaciones || 'Compra de materiales';
+                
+                return {
+                    id_factura: f.id_factura,
+                    documento: `FAC-${f.numero_documento}`,
+                    fecha: f.fecha_ingreso || '',
+                    claveMes: String(f.fecha_ingreso || '').slice(0, 7),
+                    proveedor: f.proveedor_nombre || 'Proveedor',
+                    detalle: textoDetalle,
+                    neto: netoFac,
+                    iva: ivaFac,
+                    total: totalFac,
+                    estado: 'Registrada',
+                };
+            });
+
+            setFacturas(adaptadas);
         } catch {
-            setErrorMsg('No se pudieron cargar las fichas comerciales.');
+            setErrorMsg('No se pudo cargar el listado de facturas de compra.');
+        } finally {
+            setCargando(false);
         }
     };
 
     useEffect(() => {
-        cargarEntidadesReales();
-    }, [provProp, cliProp]);
+        cargarFacturas();
+    }, []);
 
-    const totalNetoMes = facturasComprasMes.reduce((acc, f) => acc + Number(f.neto || 0), 0);
-    const totalIvaMes = facturasComprasMes.reduce((acc, f) => acc + Number(f.iva || 0), 0);
-    const totalGastosMes = facturasComprasMes.reduce((acc, f) => acc + Number(f.total || 0), 0);
+    // Genera una lista de meses disponibles según las fechas de las facturas registradas.
+    const mesesDisponibles = Array.from(
+        new Set(facturas.map((f) => f.claveMes).filter((m) => m.length === 7))
+    ).sort((a, b) => b.localeCompare(a));
 
-    const handleGuardarProveedor = async (e) => {
-        e.preventDefault();
-        setErrorMsg('');
-        setMensaje('');
-        try {
-            await actualizarProveedor(editingProveedor.id_proveedor, {
-                ...editingProveedor,
-                rut: limpiarRutParaGuardar(editingProveedor.rut),
-            });
-            setMensaje('Los datos del proveedor se actualizaron correctamente.');
-            setEditingProveedor(null);
-            await cargarEntidadesReales();
-        } catch {
-            setErrorMsg('No se pudieron guardar los cambios del proveedor. Revise que el RUT sea válido.');
+    // Filtra las facturas por el mes elegido.
+    const facturasFiltradas = facturas.filter((f) => {
+        if (mesSeleccionado !== 'todos' && f.claveMes !== mesSeleccionado) {
+            return false;
         }
-    };
-
-    const handleGuardarCliente = async (e) => {
-        e.preventDefault();
-        setErrorMsg('');
-        setMensaje('');
-        try {
-            await actualizarCliente(editingCliente.id_cliente, {
-                ...editingCliente,
-                rut: limpiarRutParaGuardar(editingCliente.rut),
-                rut_representante: limpiarRutParaGuardar(editingCliente.rut_representante),
-            });
-            setMensaje('Los datos del cliente se actualizaron correctamente.');
-            setEditingCliente(null);
-            await cargarEntidadesReales();
-        } catch {
-            setErrorMsg('No se pudieron guardar los cambios del cliente. Revise que el RUT sea válido.');
+        if (busqueda.trim() !== '') {
+            const q = busqueda.toLowerCase();
+            return (
+                f.documento.toLowerCase().includes(q) ||
+                f.proveedor.toLowerCase().includes(q) ||
+                f.detalle.toLowerCase().includes(q) ||
+                f.fecha.toLowerCase().includes(q)
+            );
         }
-    };
+        return true;
+    });
 
-    const exportarNominaProveedoresCSV = () => {
-        const encabezados = ['RUT', 'Razon Social', 'Direccion', 'Comuna', 'Ciudad', 'Region'];
-        const filas = listaProveedores.map((p) => [
-            p.rut,
-            `"${p.razon_social}"`,
-            `"${p.direccion}"`,
-            `"${p.comuna}"`,
-            `"${p.ciudad}"`,
-            `"${p.region}"`,
+    // Suma los totales de las facturas filtradas.
+    const totalNeto = facturasFiltradas.reduce((acc, f) => acc + f.neto, 0);
+    const totalIva = facturasFiltradas.reduce((acc, f) => acc + f.iva, 0);
+    const totalGastos = facturasFiltradas.reduce((acc, f) => acc + f.total, 0);
+
+    // Descarga las facturas visibles en un archivo CSV.
+    const exportarFacturasCSV = () => {
+        const encabezados = ['N° Factura', 'Fecha', 'Proveedor', 'Materiales / Detalle', 'Neto', 'IVA 19%', 'Total'];
+        const filas = facturasFiltradas.map((f) => [
+            limpiarCeldaCSV(f.documento),
+            limpiarCeldaCSV(f.fecha),
+            limpiarCeldaCSV(f.proveedor),
+            limpiarCeldaCSV(f.detalle),
+            f.neto,
+            f.iva,
+            f.total,
         ]);
-        const csvContent =
-            'data:text/csv;charset=utf-8,' +
-            [encabezados.join(','), ...filas.map((e) => e.join(','))].join('\n');
-        const link = document.createElement('a');
-        link.setAttribute('href', encodeURI(csvContent));
-        link.setAttribute('download', 'nomina_proveedores_fyag.csv');
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+
+        const contenido = '\uFEFF' + [encabezados.join(','), ...filas.map((fila) => fila.join(','))].join('\n');
+        const archivo = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(archivo);
+        const enlace = document.createElement('a');
+        enlace.href = url;
+        enlace.download = `gastos_facturas_${mesSeleccionado}.csv`;
+        document.body.appendChild(enlace);
+        enlace.click();
+        document.body.removeChild(enlace);
+        URL.revokeObjectURL(url);
     };
+
+    const etiquetaPeriodo = mesSeleccionado === 'todos' ? 'Acumulado total' : formatearMes(mesSeleccionado);
 
     return (
         <div className="finanzas-container">
-            <div className="finanzas-header">
-                <div>
-                    <h2 className="finanzas-title">Control de Costos y Facturación del Mes</h2>
-                    <p className="finanzas-subtitle">
-                        Revisión de gastos mensuales en materiales y actualización de datos de proveedores y clientes
-                    </p>
-                </div>
-
-                <div className="finanzas-banner-lock">
-                    <Lock size={15} color="#d97706" />
-                    <span>Área de Finanzas: Consulta de gastos sin modificación de stock físico</span>
-                </div>
-            </div>
-
-            {mensaje && <div className="alerta-exito">{mensaje}</div>}
             {errorMsg && <div className="alerta-error">{errorMsg}</div>}
 
-            <div className="finanzas-tabs">
-                <button
-                    type="button"
-                    onClick={() => setActiveSubTab('gastos')}
-                    className={`finanzas-tab-btn ${activeSubTab === 'gastos' ? 'active' : ''}`}
-                >
-                    <Receipt size={17} />
-                    <span>Gastos Mensuales en Facturas</span>
-                </button>
+            {/* Tarjetas de resumen de gastos según el período seleccionado */}
+            <div className="finanzas-cards-grid-3">
+                <div className='finanzas-metric-card'>
+                    <div className='finanzas-metric-label'>TOTAL NETO EN MATERIALES</div>
+                    <div className='finanzas-metric-val-main'>
+                        ${totalNeto.toLocaleString('es-CL')}
+                    </div>
+                    <div className='finanzas-metric-subtext-green'>
+                        Compras con descuentos aplicados
+                    </div>
+                </div>
 
-                <button
-                    type="button"
-                    onClick={() => setActiveSubTab('proveedores')}
-                    className={`finanzas-tab-btn ${activeSubTab === 'proveedores' ? 'active' : ''}`}
-                >
-                    <CreditCard size={17} />
-                    <span>Fichas de Proveedores ({listaProveedores.length})</span>
-                </button>
+                <div className='finanzas-metric-card'>
+                    <div className='finanzas-metric-label'>CRÉDITO FISCAL (IVA 19%)</div>
+                    <div className='finanzas-metric-val-muted'>
+                        ${totalIva.toLocaleString('es-CL')}
+                    </div>
+                    <div className='finanzas-metric-subtext'>
+                        IVA recuperable | {etiquetaPeriodo}
+                    </div>
+                </div>
 
-                <button
-                    type="button"
-                    onClick={() => setActiveSubTab('clientes')}
-                    className={`finanzas-tab-btn ${activeSubTab === 'clientes' ? 'active' : ''}`}
-                >
-                    <Building2 size={17} />
-                    <span>Fichas de Clientes ({listaClientes.length})</span>
-                </button>
+                <div className='finanzas-metric-card-highlight'>
+                    <div className='finanzas-metric-label-green'>TOTAL GASTOS ({etiquetaPeriodo.toUpperCase()})</div>
+                    <div className='finanzas-metric-val-total'>
+                        ${totalGastos.toLocaleString('es-CL')}
+                    </div>
+                    <div className='finanzas-metric-subtext-green'>
+                        {facturasFiltradas.length}{' '}
+                        {facturasFiltradas.length === 1 ? 'factura registrada' : 'facturas registradas'}
+                    </div>
+                </div>
             </div>
 
-            {activeSubTab === 'gastos' && (
-                <div className="finanzas-section-stack">
-                    <div className="finanzas-cards-grid-3">
-                        <div className="finanzas-metric-card">
-                            <div className="finanzas-metric-label">TOTAL NETO EN MATERIALES</div>
-                            <div className="finanzas-metric-val-main">
-                                ${totalNetoMes.toLocaleString('es-CL')}
-                            </div>
-                            <div className="finanzas-metric-subtext-green">
-                                Compras con descuentos aplicados
-                            </div>
+            {/* Tabla principal */}
+            <div className='finanzas-table-card'>
+                <div className='finanzas-toolbar'>
+                    <div className='finanzas-toolbar-left'>
+                        <div className='finanzas-search-box'>
+                            <Search size={15} color='#64748b' />
+                            <input
+                                type='text'
+                                maxLength={80}
+                                placeholder='Buscar por N° factura, proveedor o material...'
+                                value={busqueda}
+                                onChange={(e) => setBusqueda(e.target.value)}
+                                className='finanzas-search-input'
+                            />
                         </div>
 
-                        <div className="finanzas-metric-card">
-                            <div className="finanzas-metric-label">CRÉDITO FISCAL (IVA 19%)</div>
-                            <div className="finanzas-metric-val-muted">
-                                ${totalIvaMes.toLocaleString('es-CL')}
-                            </div>
-                            <div className="finanzas-metric-subtext">IVA recuperable del período</div>
-                        </div>
-
-                        <div className="finanzas-metric-card-highlight">
-                            <div className="finanzas-metric-label-green">TOTAL GASTOS DEL MES</div>
-                            <div className="finanzas-metric-val-total">
-                                ${totalGastosMes.toLocaleString('es-CL')}
-                            </div>
-                            <div className="finanzas-metric-subtext-green">Consolidado Mensual FYAG SpA</div>
-                        </div>
-                    </div>
-
-                    <div className="finanzas-table-card">
-                        <div className="finanzas-table-header">
-                            <div className="finanzas-table-title">
-                                Desglose de Facturas de Proveedores del Mes
-                            </div>
-                            <span className="finanzas-table-meta">
-                                {facturasComprasMes.length} facturas registradas
-                            </span>
-                        </div>
-
-                        <div className="finanzas-table-scroll">
-                            <table className="finanzas-table">
-                                <thead>
-                                    <tr className="finanzas-thead-tr">
-                                        <th className="finanzas-th">N° Factura</th>
-                                        <th className="finanzas-th">Fecha Emisión</th>
-                                        <th className="finanzas-th">Proveedor</th>
-                                        <th className="finanzas-th">Materiales / Detalle</th>
-                                        <th className="finanzas-th-right">Valor Neto</th>
-                                        <th className="finanzas-th-right">IVA (19%)</th>
-                                        <th className="finanzas-th-right">Total Factura</th>
-                                        <th className="finanzas-th-center">Estado Pago</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {facturasComprasMes.length === 0 ? (
-                                      <tr>
-                                        <td colSpan={8} className='finanzas-empty-row'>
-                                          No hay facturas registradas en el sistema.
-                                        </td>
-                                      </tr>
-                                    ) : (
-                                      facturasComprasMes.map((f, idx) => (
-                                        <tr key={`${f.id}-${idx}`} className="finanzas-tr">
-                                            <td className="finanzas-td-mono">{f.id}</td>
-                                            <td className="finanzas-td-muted">{f.fecha}</td>
-                                            <td className="finanzas-td-bold">{f.proveedor}</td>
-                                            <td className="finanzas-td-normal">{f.detalle}</td>
-                                            <td className="finanzas-td-right">
-                                                ${Number(f.neto || 0).toLocaleString('es-CL')}
-                                            </td>
-                                            <td className="finanzas-td-right-muted">
-                                                ${Number(f.iva || 0).toLocaleString('es-CL')}
-                                            </td>
-                                            <td className="finanzas-td-total">
-                                                ${Number(f.total || 0).toLocaleString('es-CL')}
-                                            </td>
-                                            <td className="finanzas-td-center">
-                                                <span
-                                                    className={`finanzas-status-badge ${
-                                                        f.estado === 'Pendiente' ? 'pending' : 'paid'
-                                                    }`}
-                                                >
-                                                    {f.estado}
-                                                </span>
-                                            </td>
-                                        </tr>
-                                      ))
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {activeSubTab === 'proveedores' && (
-                <div className="finanzas-section-stack">
-                    <div className="finanzas-table-card">
-                        <div className="finanzas-table-header">
-                            <div>
-                                <div className="finanzas-table-title">Fichas Comerciales de Proveedores</div>
-                                <div className="finanzas-subtitle">
-                                    Actualización directa de datos comerciales y de contacto
-                                </div>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={exportarNominaProveedoresCSV}
-                                className="finanzas-btn-export"
-                            >
-                                <Download size={14} />
-                                <span>Descargar Nómina CSV</span>
-                            </button>
-                        </div>
-
-                        <div className="finanzas-table-scroll">
-                            <table className="finanzas-table">
-                                <thead>
-                                    <tr className="finanzas-thead-tr">
-                                        <th className="finanzas-th">Razón Social</th>
-                                        <th className="finanzas-th">RUT</th>
-                                        <th className="finanzas-th">Dirección</th>
-                                        <th className="finanzas-th">Comuna</th>
-                                        <th className="finanzas-th">Ciudad / Región</th>
-                                        <th className="finanzas-th-center">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {listaProveedores.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={6} className="finanzas-empty-row">
-                                                No hay proveedores registrados en el sistema.
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        listaProveedores.map((p) => (
-                                            <tr key={p.id_proveedor} className="finanzas-tr">
-                                                <td className="finanzas-td-bold">{p.razon_social}</td>
-                                                <td className="finanzas-td-mono">{formatearRutVisual(p.rut)}</td>
-                                                <td className="finanzas-td-normal">{p.direccion}</td>
-                                                <td className="finanzas-td-muted">{p.comuna}</td>
-                                                <td className="finanzas-td-normal">
-                                                    {p.ciudad} ({p.region})
-                                                </td>
-                                                <td className="finanzas-td-center">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            setEditingProveedor({
-                                                                ...p,
-                                                                rut: formatearRutVisual(p.rut),
-                                                            })
-                                                        }
-                                                        className="finanzas-btn-edit"
-                                                    >
-                                                        <Edit2 size={13} />
-                                                        <span>Editar</span>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
+                        <div className='finanzas-period-box'>
+                            <Calendar size={15} color='#64748b' />
+                            <select value={mesSeleccionado} onChange={(e) => setMesSeleccionado(e.target.value)} className='finanzas-period-select' aria-label='Filtrar gastos por mes'>
+                                <option value="todos">Todos los períodos</option>
+                                {mesesDisponibles.map((mes) => (
+                                    <option key={mes} value={mes}>
+                                        {formatearMes(mes)}
+                                    </option>
+                                ))}
+                            </select>
                         </div>
                     </div>
 
-                    {editingProveedor && (
-                        <div className="finanzas-modal-overlay">
-                            <div className="finanzas-modal-box">
-                                <div className="finanzas-modal-header">
-                                    <h3 className="finanzas-modal-title">
-                                        Modificar Proveedor: {editingProveedor.razon_social}
-                                    </h3>
-                                    <button
-                                        type="button"
-                                        onClick={() => setEditingProveedor(null)}
-                                        className="finanzas-modal-close"
-                                    >
-                                        X
-                                    </button>
-                                </div>
-                                <form onSubmit={handleGuardarProveedor} className="finanzas-modal-form">
-                                    <div className="finanzas-form-group">
-                                        <label className="finanzas-form-label">Razón Social</label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={editingProveedor.razon_social}
-                                            onChange={(e) =>
-                                                setEditingProveedor({
-                                                    ...editingProveedor,
-                                                    razon_social: e.target.value,
-                                                })
-                                            }
-                                            className="finanzas-input-field"
-                                        />
-                                    </div>
-                                    <div className="finanzas-form-group">
-                                        <label className="finanzas-form-label">RUT del Proveedor</label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={editingProveedor.rut}
-                                            onChange={(e) =>
-                                                setEditingProveedor({
-                                                    ...editingProveedor,
-                                                    rut: formatearRutVisual(e.target.value),
-                                                })
-                                            }
-                                            className="finanzas-input-field"
-                                        />
-                                    </div>
-                                    <div className="finanzas-form-group">
-                                        <label className="finanzas-form-label">Dirección Comercial</label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={editingProveedor.direccion}
-                                            onChange={(e) =>
-                                                setEditingProveedor({
-                                                    ...editingProveedor,
-                                                    direccion: e.target.value,
-                                                })
-                                            }
-                                            className="finanzas-input-field"
-                                        />
-                                    </div>
-                                    <div className="finanzas-form-group">
-                                        <label className="finanzas-form-label">Ciudad</label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={editingProveedor.ciudad}
-                                            onChange={(e) =>
-                                                setEditingProveedor({
-                                                    ...editingProveedor,
-                                                    ciudad: e.target.value,
-                                                })
-                                            }
-                                            className="finanzas-input-field"
-                                        />
-                                    </div>
-                                    <div className="finanzas-modal-actions">
-                                        <button
-                                            type="button"
-                                            onClick={() => setEditingProveedor(null)}
-                                            className="finanzas-btn-cancel"
-                                        >
-                                            Cancelar
-                                        </button>
-                                        <button type="submit" className="finanzas-btn-save">
-                                            Guardar Cambios
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {activeSubTab === 'clientes' && (
-                <div className="finanzas-table-card">
-                    <div className="finanzas-table-header">
-                        <div className="finanzas-table-title">Fichas Comerciales de Clientes Mandantes</div>
-                        <span className="finanzas-table-meta">
-                            {listaClientes.length} empresas registradas
+                    <div className='finanzas-toolbar-right'>
+                        <span className='finanzas-table-meta'>
+                            {facturasFiltradas.length} facturas mostradas
                         </span>
+                        <button type='button' onClick={exportarFacturasCSV} disabled={facturasFiltradas.length === 0} className='finanzas-btn-export'>
+                            <Download size={14} />
+                            <span>Exportar CSV</span>
+                        </button>
                     </div>
+                </div>
 
-                    <div className="finanzas-table-scroll">
-                        <table className="finanzas-table">
-                            <thead>
-                                <tr className="finanzas-thead-tr">
-                                    <th className="finanzas-th">Razón Social</th>
-                                    <th className="finanzas-th">RUT</th>
-                                    <th className="finanzas-th">Rubro / Giro Comercial</th>
-                                    <th className="finanzas-th">Ubicación</th>
-                                    <th className="finanzas-th">Representante Legal</th>
-                                    <th className="finanzas-th-center">Acciones</th>
+                <div className='finanzas-table-scroll'>
+                    <table className='finanzas-table'>
+                        <thead>
+                            <tr className='finanzas-thead-tr'>
+                                <th className='finanzas-th'>N° Factura</th>
+                                <th className='finanzas-th'>Fecha Emisión</th>
+                                <th className='finanzas-th'>Proveedor</th>
+                                <th className='finanzas-th'>Materiales / Detalle</th>
+                                <th className='finanzas-th-right'>Valor Neto</th>
+                                <th className='finanzas-th-right'>IVA (19%)</th>
+                                <th className='finanzas-th-right'>Total Factura</th>
+                                <th className='finanzas-th-center'>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {cargando ? (
+                                <tr>
+                                    <td colSpan={8} className='finanzas-empty-row'>
+                                        Cargando facturas registradas...
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {listaClientes.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={6} className="finanzas-empty-row">
-                                            No hay clientes registrados en el sistema.
+                            ) : facturasFiltradas.length === 0 ? (
+                                <tr>
+                                    <td colSpan={8} className='finanzas-empty-row'>
+                                        No hay facturas registradas para los filtros seleccionados.
+                                    </td>
+                                </tr>
+                            ) : (
+                                facturasFiltradas.map((f) => (
+                                    <tr key={f.id_factura} className='finanzas-tr'>
+                                        <td className='finanzas-td-mono'>{f.documento}</td>
+                                        <td className='finanzas-td-muted'>{f.fecha}</td>
+                                        <td className='finanzas-td-bold'>{f.proveedor}</td>
+                                        <td className='finanzas-td-normal'>{f.detalle}</td>
+                                        <td className='finanzas-td-right'>
+                                            ${f.neto.toLocaleString('es-CL')}
+                                        </td>
+                                        <td className='finanzas-td-right-muted'>
+                                            ${f.iva.toLocaleString('es-CL')}
+                                        </td>
+                                        <td className='finanzas-td-total'>
+                                            ${f.total.toLocaleString('es-CL')}
+                                        </td>
+                                        <td className='finanzas-td-center'>
+                                            <span className='finanzas-status-badge paid'>
+                                                {f.estado}
+                                            </span>
                                         </td>
                                     </tr>
-                                ) : (
-                                    listaClientes.map((c) => (
-                                        <tr key={c.id_cliente} className="finanzas-tr">
-                                            <td className="finanzas-td-bold">{c.razon_social}</td>
-                                            <td className="finanzas-td-mono">{formatearRutVisual(c.rut)}</td>
-                                            <td className="finanzas-td-normal">{c.giro_comercial}</td>
-                                            <td className="finanzas-td-muted">
-                                                {c.ciudad} ({c.comuna})
-                                            </td>
-                                            <td className="finanzas-td-normal">
-                                                {c.nombre_representante} ({formatearRutVisual(c.rut_representante)})
-                                            </td>
-                                            <td className="finanzas-td-center">
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        setEditingCliente({
-                                                            ...c,
-                                                            rut: formatearRutVisual(c.rut),
-                                                            rut_representante: formatearRutVisual(c.rut_representante),
-                                                        })
-                                                    }
-                                                    className="finanzas-btn-edit"
-                                                >
-                                                    <Edit2 size={13} />
-                                                    <span>Editar</span>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {editingCliente && (
-                        <div className="finanzas-modal-overlay">
-                            <div className="finanzas-modal-box">
-                                <div className="finanzas-modal-header">
-                                    <h3 className="finanzas-modal-title">
-                                        Modificar Cliente: {editingCliente.razon_social}
-                                    </h3>
-                                    <button
-                                        type="button"
-                                        onClick={() => setEditingCliente(null)}
-                                        className="finanzas-modal-close"
-                                    >
-                                        X
-                                    </button>
-                                </div>
-                                <form onSubmit={handleGuardarCliente} className="finanzas-modal-form">
-                                    <div className="finanzas-form-group">
-                                        <label className="finanzas-form-label">Razón Social</label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={editingCliente.razon_social}
-                                            onChange={(e) =>
-                                                setEditingCliente({
-                                                    ...editingCliente,
-                                                    razon_social: e.target.value,
-                                                })
-                                            }
-                                            className="finanzas-input-field"
-                                        />
-                                    </div>
-                                    <div className="finanzas-form-group">
-                                        <label className="finanzas-form-label">Rubro o Giro Comercial</label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={editingCliente.giro_comercial}
-                                            onChange={(e) =>
-                                                setEditingCliente({
-                                                    ...editingCliente,
-                                                    giro_comercial: e.target.value,
-                                                })
-                                            }
-                                            className="finanzas-input-field"
-                                        />
-                                    </div>
-                                    <div className="finanzas-form-group">
-                                        <label className="finanzas-form-label">Nombre del Representante Legal</label>
-                                        <input
-                                            type="text"
-                                            required
-                                            value={editingCliente.nombre_representante}
-                                            onChange={(e) =>
-                                                setEditingCliente({
-                                                    ...editingCliente,
-                                                    nombre_representante: e.target.value,
-                                                })
-                                            }
-                                            className="finanzas-input-field"
-                                        />
-                                    </div>
-                                    <div className="finanzas-modal-actions">
-                                        <button
-                                            type="button"
-                                            onClick={() => setEditingCliente(null)}
-                                            className="finanzas-btn-cancel"
-                                        >
-                                            Cancelar
-                                        </button>
-                                        <button type="submit" className="finanzas-btn-save">
-                                            Guardar Cambios
-                                        </button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    )}
+                                ))
+                            )}
+                        </tbody>
+                    </table>
                 </div>
-            )}
+            </div>
         </div>
     );
 }
