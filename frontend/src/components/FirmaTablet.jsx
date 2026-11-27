@@ -1,12 +1,14 @@
 import React, { useRef, useState, useEffect } from "react";
 import { PenTool, Check, RotateCcw } from 'lucide-react';
-import '../styles/FirmaTablet.css'
+import '../styles/FirmaTablet.css';
 
-const FirmaTablet = ({onConfirmarFirma, onCancelar, documento='', titulo='Firma Digital de Recepción Conforme',}) => {
+// Ventana emergente para dibujar la firma.
+const FirmaTablet = ({ onConfirmarFirma, onCancelar, documento = '', titulo = 'Firma Digital de Recepción Conforme' }) => {
     const canvasRef = useRef(null);
     const [dibujando, setDibujando] = useState(false);
     const [tieneTrazo, setTieneTrazo] = useState(false);
 
+    // Configura el grosor y color del lápiz al abrir el recuadro.
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -17,6 +19,7 @@ const FirmaTablet = ({onConfirmarFirma, onCancelar, documento='', titulo='Firma 
         ctx.lineJoin = 'round';
     }, []);
 
+    // Calcula la posición exacta dentro del recuadro.
     const obtenerCoordenadas = (e) => {
         const canvas = canvasRef.current;
         const rect = canvas.getBoundingClientRect();
@@ -55,6 +58,7 @@ const FirmaTablet = ({onConfirmarFirma, onCancelar, documento='', titulo='Firma 
         setDibujando(false);
     };
 
+    // Borra el dibujo actual para volver a firmar.
     const limpiar = () => {
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -63,12 +67,14 @@ const FirmaTablet = ({onConfirmarFirma, onCancelar, documento='', titulo='Firma 
         setTieneTrazo(false);
     };
 
+    // Guarda la firma como imagen y la envía a la pantalla principal.
     const confirmar = () => {
+        if (!tieneTrazo) return;
         const canvas = canvasRef.current;
-        const dataUrl = tieneTrazo && canvas ? canvas.toDataURL('image/png') : null;
+        const dataUrl = canvas ? canvas.toDataURL('image/png') : null;
         onConfirmarFirma({
             firmaUrl: dataUrl,
-            fecha: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            fecha: new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
             documento,
         });
     };
@@ -83,12 +89,16 @@ const FirmaTablet = ({onConfirmarFirma, onCancelar, documento='', titulo='Firma 
                     <div>
                         <h3 className="firma-modal-title">{titulo}</h3>
                         {documento && (
-                            <span className="firma-modal-doc">Documento: <strong>{documento}</strong></span>
+                            <span className="firma-modal-doc">
+                                Documento: <strong>{documento}</strong>
+                            </span>
                         )}
                     </div>
                 </div>
 
-                <p className="firma-modal-instructions">Dibuje su firma con el dedo o puntero táctil en el recuadro para validar la recepción conforme.</p>
+                <p className="firma-modal-instructions">
+                    Dibuje su firma con el dedo o puntero dentro del recuadro para confirmar la entrega.
+                </p>
 
                 <div className="firma-canvas-wrapper">
                     <canvas
@@ -119,7 +129,7 @@ const FirmaTablet = ({onConfirmarFirma, onCancelar, documento='', titulo='Firma 
                         {onCancelar && (
                             <button type="button" onClick={onCancelar} className="firma-btn-cancel">Cancelar</button>
                         )}
-                        <button type="button" onClick={confirmar} className="firma-btn-confirm">
+                        <button type="button" onClick={confirmar} disabled={!tieneTrazo} className="firma-btn-confirm">
                             <Check size={16} />
                             <span>Confirmar Firma</span>
                         </button>

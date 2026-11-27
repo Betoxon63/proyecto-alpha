@@ -11,7 +11,7 @@ export default function DevolucionesView({ obras = [], proveedores = [], articul
     const [cantidad, setCantidad] = useState(1);
     const [documento, setDocumento] = useState('');
     const [motivo, setMotivo] = useState('');
-    const [enviando, setEnviado] = useState(false);
+    const [enviando, setEnviando] = useState(false);
     const [mensajeExito, setMensajeExito] = useState('');
     const [mensajeError, setMensajeError] = useState('');
 
@@ -129,6 +129,11 @@ export default function DevolucionesView({ obras = [], proveedores = [], articul
             return;
         }
 
+        if (tipoDevolucion === 'proveedor' && !proveedorId) {
+            setMensajeError('Debe seleccionar el proveedor al cual se devuelve el material.');
+            return;
+        }
+
         const payload = {
             tipo_devolucion: tipoDevolucion,
             id_articulo: Number(articuloId),
@@ -143,7 +148,7 @@ export default function DevolucionesView({ obras = [], proveedores = [], articul
             payload.id_proveedor = Number(proveedorId);
         }
 
-        setEnviado(true);
+        setEnviando(true);
         try {
             const respuesta = await registrarDevolucion(payload);
             const avisoStock = respuesta.alerta_stock_minimo
@@ -164,7 +169,7 @@ export default function DevolucionesView({ obras = [], proveedores = [], articul
                 setMensajeError('No se pudo registrar la devolución en el servidor.');
             }
         } finally {
-            setEnviado(false);
+            setEnviando(false);
         }
     };
 
@@ -220,7 +225,7 @@ export default function DevolucionesView({ obras = [], proveedores = [], articul
                         ) : (
                             <div className="despachos-field">
                                 <label className="despachos-label">Proveedor Destino</label>
-                                <select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)} className="despachos-select">
+                                <select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)} className="despachos-select" required>
                                     {proveedores.length === 0 ? (
                                         <option value="">Sin proveedores registrados</option>
                                     ) : (
@@ -290,6 +295,7 @@ export default function DevolucionesView({ obras = [], proveedores = [], articul
                                 </label>
                                 <input
                                     type="text"
+                                    maxLength={80}
                                     value={documento}
                                     onChange={(e) => setDocumento(e.target.value)}
                                     placeholder={tipoDevolucion === 'obra' ? 'Ej: DEV-001' : 'Ej: NC-4510'}
@@ -305,6 +311,7 @@ export default function DevolucionesView({ obras = [], proveedores = [], articul
                             </div>
                             <textarea
                                 rows={3}
+                                minLength={5}
                                 maxLength={300}
                                 value={motivo}
                                 onChange={(e) => setMotivo(e.target.value)}
@@ -329,7 +336,7 @@ export default function DevolucionesView({ obras = [], proveedores = [], articul
                             </span>
                         </div>
 
-                        <button type="submit" className={`despachos-btn-submit ${tipoDevolucion === 'obra' ? 'devolucion' : 'merma'}`} disabled={enviando || maximoPermitido <= 0}>
+                        <button type="submit" className={`despachos-btn-submit ${tipoDevolucion === 'obra' ? 'devolucion' : 'merma'}`} disabled={enviando || maximoPermitido <= 0 || (tipoDevolucion === 'proveedor' && !proveedorId)}>
                             <RotateCcw size={17} />
                             <span>
                                 {enviando

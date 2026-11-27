@@ -6,7 +6,7 @@ export default function MermasView({ articulos = [], cardex = [], onMovimientoRe
     const [articuloId, setArticuloId] = useState('');
     const [cantidad, setCantidad] = useState(1);
     const [motivo, setMotivo] = useState('');
-    const [enviando, setEnviado] = useState(false);
+    const [enviando, setEnviando] = useState(false);
     const [mensajeExito, setMensajeExito] = useState('');
     const [mensajeError, setMensajeError] = useState('');
 
@@ -43,7 +43,7 @@ export default function MermasView({ articulos = [], cardex = [], onMovimientoRe
             return;
         }
 
-        setEnviado(true);
+        setEnviando(true);
         try {
             const respuesta = await registrarMerma({
                 id_articulo: Number(articuloSeleccionado.id_articulo),
@@ -68,7 +68,7 @@ export default function MermasView({ articulos = [], cardex = [], onMovimientoRe
                 setMensajeError('No se pudo registrar la merma en el servidor.');
             }
         } finally {
-            setEnviado(false);
+            setEnviando(false);
         }
     };
 
@@ -93,7 +93,7 @@ export default function MermasView({ articulos = [], cardex = [], onMovimientoRe
                     <form onSubmit={manejarRegistroMerma}>
                         <div className="despachos-field">
                             <label className="despachos-label">Material o Repuesto Dañado</label>
-                            <select value={articuloId} onChange={(e) => setArticuloId(e.target.value)} className="despachos-select" required>
+                            <select value={articuloId} onChange={(e) => { setArticuloId(e.target.value); setCantidad(1); }} className="despachos-select" required>
                                 {articulos.length === 0 ? (
                                     <option value="">No hay materiales registrados en el catálogo</option>
                                 ) : (
@@ -143,6 +143,7 @@ export default function MermasView({ articulos = [], cardex = [], onMovimientoRe
                             </div>
                             <textarea
                                 rows={3}
+                                minLength={5}
                                 maxLength={300}
                                 value={motivo}
                                 onChange={(e) => setMotivo(e.target.value)}
@@ -160,7 +161,7 @@ export default function MermasView({ articulos = [], cardex = [], onMovimientoRe
                             </span>
                         </div>
 
-                        <button type="submit" className="despachos-btn-submit merma" disabled={enviando}>
+                        <button type="submit" className="despachos-btn-submit merma" disabled={enviando || Number(articuloSeleccionado?.stock_disponible || 0) <= 0}>
                             <ShieldAlert size={17} />
                             <span>{enviando ? 'Guardando...' : 'Confirmar Merma y Descontar Stock'}</span>
                         </button>

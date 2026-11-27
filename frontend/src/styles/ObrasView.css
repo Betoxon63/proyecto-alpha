@@ -12,6 +12,12 @@
     gap: 14px;
 }
 
+.obras-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
 .obras-title {
     font-size: 24px;
     font-weight: 800;
@@ -112,6 +118,7 @@
     border-radius: 8px;
     padding: 6px 12px;
     width: 340px;
+    max-width: 100%;
     gap: 8px;
 }
 
@@ -298,18 +305,10 @@
     border-radius: 16px;
     max-width: 560px;
     width: 100%;
-    overflow: hidden;
+    max-height: 92vh;
+    overflow-y: auto;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
     border: 1px solid #cbd5e1;
-}
-
-.obras-modal-header {
-    background-color: var(--color-primario);
-    padding: 16px 20px;
-    color: #ffffff;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
 }
 
 .obras-modal-title {
@@ -410,6 +409,183 @@
     background-color: var(--color-primario-hover);
 }
 
+.obras-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.obras-tabs-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    background-color: #ffffff;
+    padding: 8px;
+    border-radius: 12px;
+    border: 1px solid var(--color-borde);
+    box-shadow: var(--sombra-suave);
+}
+
+.obras-tab-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 16px;
+    border-radius: 8px;
+    border: none;
+    background-color: transparent;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.obras-tab-item:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+}
+
+.obras-tab-item.active {
+    background-color: var(--color-primario);
+    color: #ffffff;
+}
+
+.obras-tab-count {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    background-color: rgba(15, 23, 42, 0.08);
+    color: inherit;
+}
+
+.obras-tab-item.active .obras-tab-count {
+    background-color: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+}
+
+.obras-submodulo {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.obras-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.obras-count-label {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.obras-btn-export {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background-color: #f0fdf4;
+    color: var(--color-primario);
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.obras-btn-export:hover:not(:disabled) {
+    background-color: #dcfce7;
+}
+
+.obras-btn-export:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.obras-btn-view {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background-color: #f0fdf4;
+    color: var(--color-primario);
+    border: 1px solid #bbf7d0;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.obras-btn-view:hover {
+    background-color: #dcfce7;
+}
+
+.obras-cost {
+    font-weight: 800;
+    color: var(--color-primario);
+    white-space: nowrap;
+}
+
+.obras-usage-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 700;
+}
+
+.obras-usage-badge.en-uso {
+    background-color: #dcfce7;
+    color: #15803d;
+}
+
+.obras-usage-badge.libre {
+    background-color: #f1f5f9;
+    color: #64748b;
+}
+
+.obras-modal-card.small {
+    max-width: 440px;
+}
+
+.obras-modal-card.large {
+    max-width: 720px;
+}
+
+.obras-detail-summary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 16px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 12.5px;
+    color: #334155;
+    margin-bottom: 14px;
+}
+
+.obras-detail-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-top: 14px;
+    font-size: 13.5px;
+    color: #166534;
+}
+
+.obras-detail-total strong {
+    font-size: 17px;
+    color: var(--color-primario);
+}
 @media (max-width: 768px) {
     .obras-modal-grid {
         grid-template-columns: 1fr;

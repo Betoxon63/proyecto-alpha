@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Truck, CheckCircle, PenTool, ShieldAlert, RotateCcw } from "lucide-react";
+import { Truck, CheckCircle, PenTool, ShieldAlert, RotateCcw, Printer } from "lucide-react";
 import FirmaTablet from "../components/FirmaTablet";
+import ComprobanteDespachoModal from "../components/ComprobanteDespachoModal";
 import MermasView from "../components/MermasView";
 import DevolucionesView from "../components/DevolucionesView";
 import { obtenerArticulos, obtenerProveedores } from "../services_api/inventarioService";
@@ -8,6 +9,7 @@ import { obtenerObras, obtenerCardex, despacharObra } from "../services_api/obra
 import { obtenerUsuarioActual } from "../services_api/authService";
 import '../styles/ObrasDespachosView.css';
 
+// Pantalla principal para emitir despachos a obra, mermas y devoluciones desde bodega.
 export default function DespachoObra({ usuario: usuarioProp = null, obras: obrasProp = null, articulos: articulosProp = null, cardex: cardexProp = null, onRegistrarDespacho, }) {
     const usuarioActivo = usuarioProp || obtenerUsuarioActual();
     const [pestana, setPestana] = useState('despachos');
@@ -16,16 +18,23 @@ export default function DespachoObra({ usuario: usuarioProp = null, obras: obras
     const [proveedores, setProveedores] = useState([]);
     const [cardex, setCardex] = useState(cardexProp || []);
     const [cargando, setCargando] = useState(!obrasProp);
+
     const [selectedObraId, setSelectedObraId] = useState('');
     const [articuloId, setArticuloId] = useState('');
     const [cantidad, setCantidad] = useState(1);
     const [tecnicoReceptor, setTecnicoReceptor] = useState('');
-    const [guiaDespacho, setGuiaDespacho] = useState('GD-001540');
+    const [guiaDespacho, setGuiaDespacho] = useState('');
+
     const [mostrarFirma, setMostrarFirma] = useState(false);
     const [datosFirmaCapturada, setDatosFirmaCapturada] = useState(null);
-    const [showSuccess, setShowSuccess] = useState(false);
+    const [ultimoComprobante, setUltimoComprobante] = useState(null);
+    const [mostrarComprobante, setMostrarComprobante] = useState(false);
+
+    const [enviando, setEnviando] = useState(false);
+    const [mensajeExito, setMensajeExito] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
 
+    // Carga las obras, materiales, proveedores e historial desde el servidor.
     const cargarTodo = async () => {
         if (obrasProp && articulosProp && cardexProp) {
             setObras(obrasProp);
@@ -65,35 +74,45 @@ export default function DespachoObra({ usuario: usuarioProp = null, obras: obras
                 }
             }
         } catch {
-            setErrorMsg('No se pudo cargar el módulo de obras y despachos.')
+            setErrorMsg('No se pudo cargar el módulo de obras y despachos.');
         } finally {
             setCargando(false);
         }
+    };
+
+    // Actualiza el contador de stock.
+    const refrescarContador = async () => {
+        await cargarTodo();
+        window.dispatchEvent(new Event('fyag_inventario_actualizado'));
     };
 
     useEffect(() => {
         cargarTodo();
     }, [obrasProp, articulosProp, cardexProp]);
 
-    // Filtra únicamente las obras en estado "En proceso" para despachar materiales.
-    const obrasHabilitadas = obras.filter(
-        (o) => !o.estado || o.estado === 'En proceso' || o.estado === 'Activa'
-    );
+    // Cambia entre pestañas.
+    const cambiarPestana = (nuevaPestana) => {
+        setPestana(nuevaPestana);
+        setErrorMsg('');
+        setMensajeExito('');
+    };
 
-    const selectedObra = obrasHabilitadas.find((o) => String(o.id_obra || o.id) === String(selectedObraId)) ||
-        obrasHabilitadas[0] || {
-            id_obra: null,
-            nombre: 'Sin obras en proceso',
-            cliente: 'Registre o active una obra en la sección Obras',
-            ubicacion: 'Ñuble',
-            tecnico_asociado: '',
-            codigo: 'SIN-OBRA',
-        };
+    // Filtra únicamente las obras en estado "En proceso" para despachar materiales.
+    const obrasHabilitadas = obras.filter((o) => !o.estado || o.estado === 'En proceso' || o.estado === 'Activa');
+
+    const selectedObra = obrasHabilitadas.find((o) => String(o.id_obra || o.id) === String(selectedObraId)) || obrasHabilitadas[0] || {
+        id_obra: null,
+        nombre: 'Sin obras en proceso',
+        cliente: 'Registre o active una obra en la sección Gestión de Obras',
+        ubicacion: 'Ñuble',
+        tecnico_asociado: '',
+        codigo: 'SIN-OBRA',
+    };
 
     const selectedArticulo = articulos.find((a) => String(a.id_articulo) === String(articuloId)) || articulos[0];
 
     // Muestra todos los envíos y devoluciones asociados a la obra seleccionada.
-    const despachoObra = cardex.filter((m) => {
+    const despachosObra = cardex.filter((m) => {
         const tipo = (m.tipo_movimiento || '').toLowerCase();
         if (tipo.includes('registro de obra') || tipo.includes('modificación de obra')) return false;
         const coincideId = selectedObra.id_obra && m.id_obra && Number(m.id_obra) === Number(selectedObra.id_obra);
@@ -108,9 +127,11 @@ export default function DespachoObra({ usuario: usuarioProp = null, obras: obras
     const totalMermas = cardex.filter((m) => (m.tipo_movimiento || '').toLowerCase().includes('merma')).length;
     const totalDevoluciones = cardex.filter((m) => (m.tipo_movimiento || '').toLowerCase().includes('devoluci')).length;
 
+    // Valida el formulario, descuenta stock en el servidor y prepara el comprobante de entrega.
     const handleCrearDespacho = async (e) => {
         e.preventDefault();
         setErrorMsg('');
+        setMensajeExito('');
 
         if (!selectedObra.id_obra) {
             setErrorMsg('Primero debe existir una obra con estado "En proceso" para poder despachar materiales.');
@@ -127,40 +148,72 @@ export default function DespachoObra({ usuario: usuarioProp = null, obras: obras
             return;
         }
 
-        const movimientoData = {
-            id_articulo: selectedArticulo.id_articulo,
-            id_usuario: usuarioActivo?.id_usuario,
-            id_obra: selectedObra.id_obra,
-            id_tipo_movimiento: 2,
-            usuario_responsable: usuarioActivo?.nombre || 'Encargado de Bodega',
-            cargo: usuarioActivo?.rol || 'Bodeguero',
-            articulo_nombre: selectedArticulo.nombre,
-            articulo_codigo: selectedArticulo.codigo_barra || selectedArticulo.codigo_interno,
-            articulo_detalle: selectedArticulo.categoria_nombre || selectedArticulo.categoria,
-            cantidad: -Number(cantidad),
-            unidad_medida: selectedArticulo.unidad_nombre || selectedArticulo.unidad_medida || 'un',
-            tipo_movimiento: 'Salida',
-            obra_destino: selectedObra.nombre,
-            documento_respaldo: guiaDespacho,
-            motivo: `Guía ${guiaDespacho} | Entregado a ${tecnicoReceptor} para ${selectedObra.nombre}`,
-        };
+        const guiaLimpia = guiaDespacho.trim();
+        const tecnicoLimpio = tecnicoReceptor.trim();
+        if (!guiaLimpia || !tecnicoLimpio) {
+            setErrorMsg('Complete el número de guía y el nombre del técnico que recibe el material.');
+            return;
+        }
 
+        setEnviando(true);
         try {
+            let respuesta = null;
             if (onRegistrarDespacho) {
-                await onRegistrarDespacho(movimientoData, selectedArticulo.id_articulo, Number(cantidad));
+                respuesta = await onRegistrarDespacho(
+                    {
+                        id_articulo: selectedArticulo.id_articulo,
+                        id_obra: selectedObra.id_obra,
+                        cantidad: -Number(cantidad),
+                        documento_respaldo: guiaLimpia,
+                        motivo: `Guía ${guiaLimpia} | Entregado a ${tecnicoLimpio} para ${selectedObra.nombre}`,
+                    },
+                    selectedArticulo.id_articulo,
+                    Number(cantidad)
+                );
             } else {
-                await despacharObra(selectedObra.id_obra, {
+                respuesta = await despacharObra(selectedObra.id_obra, {
                     id_articulo: selectedArticulo.id_articulo,
                     cantidad: Number(cantidad),
-                    documento_respaldo: guiaDespacho.trim(),
-                    tecnico_receptor: tecnicoReceptor.trim(),
-                    motivo: `Entregado a ${tecnicoReceptor.trim()} para ${selectedObra.nombre}`,
+                    documento_respaldo: guiaLimpia,
+                    tecnico_receptor: tecnicoLimpio,
+                    motivo: `Entregado a ${tecnicoLimpio} para ${selectedObra.nombre}`,
                 });
-                await cargarTodo();
+                await refrescarContador();
             }
 
-            setShowSuccess(true);
-            setTimeout(() => setShowSuccess(false), 4000);
+            // Guarda los datos del comprobante recién emitido para imprimirlo si se requiere.
+            setUltimoComprobante({
+                guia: guiaLimpia,
+                fecha: new Date().toLocaleString('es-CL', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                }),
+                obraNombre: selectedObra.nombre,
+                cliente: selectedObra.cliente || selectedObra.cliente_nombre || 'Cliente FYAG',
+                entregadoPor: usuarioActivo?.nombre || 'Encargado de Bodega',
+                tecnicoReceptor: tecnicoLimpio,
+                articuloCodigo: selectedArticulo.codigo_barra || `ART-${selectedArticulo.id_articulo}`,
+                articuloNombre: selectedArticulo.nombre,
+                cantidad: Number(cantidad),
+                unidad: selectedArticulo.unidad_nombre || selectedArticulo.unidad_medida || 'un',
+                firmaUrl: datosFirmaCapturada?.firmaUrl || null,
+                firmaHora: datosFirmaCapturada?.fecha || '',
+            });
+
+            const avisoStock = respuesta?.alerta_stock_minimo
+                ? ' Atención: este material quedó en nivel de stock bajo.'
+                : '';
+            setMensajeExito(
+                `Despacho ${guiaLimpia} emitido con éxito para ${selectedObra.nombre}.${avisoStock}`
+            );
+
+            // Limpia los campos de la entrega anterior.
+            setGuiaDespacho('');
+            setCantidad(1);
+            setDatosFirmaCapturada(null);
         } catch (err) {
             const dataErr = err.response?.data;
             if (dataErr?.detail) {
@@ -170,8 +223,12 @@ export default function DespachoObra({ usuario: usuarioProp = null, obras: obras
             } else {
                 setErrorMsg('No se pudo registrar el despacho en el servidor.');
             }
+        } finally {
+            setEnviando(false);
         }
     };
+
+    const sinStockDisponible = Number(selectedArticulo?.stock_disponible || 0) <= 0;
 
     return (
         <div className="despachos-container">
@@ -185,19 +242,19 @@ export default function DespachoObra({ usuario: usuarioProp = null, obras: obras
             </div>
 
             <div className="despachos-tabs-bar">
-                <button type="button" onClick={() => setPestana('despachos')} className={`despachos-tab-item ${pestana === 'despachos' ? 'active' : ''}`}>
+                <button type="button" onClick={() => cambiarPestana('despachos')} className={`despachos-tab-item ${pestana === 'despachos' ? 'active' : ''}`}>
                     <Truck size={16} />
                     <span>Despacho a Obra</span>
                     <span className="despachos-tab-count">{obrasHabilitadas.length}</span>
                 </button>
 
-                <button type="button" onClick={() => setPestana('mermas')} className={`despachos-tab-item ${pestana === 'mermas' ? 'active' : ''}`}>
+                <button type="button" onClick={() => cambiarPestana('mermas')} className={`despachos-tab-item ${pestana === 'mermas' ? 'active' : ''}`}>
                     <ShieldAlert size={16} />
                     <span>Mermas Justificadas</span>
                     <span className="despachos-tab-count">{totalMermas}</span>
                 </button>
 
-                <button type="button" onClick={() => setPestana('devoluciones')} className={`despachos-tab-item ${pestana === 'devoluciones' ? 'active' : ''}`}>
+                <button type="button" onClick={() => cambiarPestana('devoluciones')} className={`despachos-tab-item ${pestana === 'devoluciones' ? 'active' : ''}`}>
                     <RotateCcw size={16} />
                     <span>Devoluciones</span>
                     <span className="despachos-tab-count">{totalDevoluciones}</span>
@@ -208,13 +265,16 @@ export default function DespachoObra({ usuario: usuarioProp = null, obras: obras
                 <>
                     {errorMsg && <div className="alerta-error">{errorMsg}</div>}
 
-                    {showSuccess && (
+                    {mensajeExito && (
                         <div className="despachos-alert-success">
                             <CheckCircle size={18} color="#10b981" />
-                            <span>
-                                <strong>Despacho emitido con éxito:</strong> Stock rebajado, asignado a la obra{' '}
-                                {selectedObra.nombre} y guardado en el historial de movimientos.
-                            </span>
+                            <span>{mensajeExito}</span>
+                            {ultimoComprobante && (
+                                <button type="button" onClick={() => setMostrarComprobante(true)} className="despachos-btn-comprobante">
+                                    <Printer size={14} />
+                                    <span>Ver / Imprimir Comprobante</span>
+                                </button>
+                            )}
                         </div>
                     )}
 
@@ -233,14 +293,13 @@ export default function DespachoObra({ usuario: usuarioProp = null, obras: obras
                                         onChange={(e) => {
                                             const nuevoId = e.target.value;
                                             setSelectedObraId(nuevoId);
-                                            const obraElegida = obrasHabilitadas.find(
-                                                (o) => String(o.id_obra || o.id) === String(nuevoId)
-                                            );
+                                            const obraElegida = obrasHabilitadas.find((o) => String(o.id_obra || o.id) === String(nuevoId));
                                             if (obraElegida?.tecnico_asociado) {
                                                 setTecnicoReceptor(obraElegida.tecnico_asociado);
                                             }
                                         }}
                                         className="despachos-select"
+                                        required
                                     >
                                         {obrasHabilitadas.length === 0 ? (
                                             <option value="">No hay obras en proceso disponibles</option>
@@ -262,6 +321,8 @@ export default function DespachoObra({ usuario: usuarioProp = null, obras: obras
                                         <label className="despachos-label">N° Guía de Despacho</label>
                                         <input
                                             type="text"
+                                            maxLength={50}
+                                            placeholder="Ej: GD-001540"
                                             value={guiaDespacho}
                                             onChange={(e) => setGuiaDespacho(e.target.value)}
                                             className="despachos-input"
@@ -273,6 +334,9 @@ export default function DespachoObra({ usuario: usuarioProp = null, obras: obras
                                         <label className="despachos-label">Técnico Receptor</label>
                                         <input
                                             type="text"
+                                            minLength={3}
+                                            maxLength={80}
+                                            placeholder="Nombre de quien retira"
                                             value={tecnicoReceptor}
                                             onChange={(e) => setTecnicoReceptor(e.target.value)}
                                             className="despachos-input"
@@ -283,7 +347,7 @@ export default function DespachoObra({ usuario: usuarioProp = null, obras: obras
 
                                 <div className="despachos-field">
                                     <label className="despachos-label">Material o Repuesto a Despachar</label>
-                                    <select value={articuloId} onChange={(e) => setArticuloId(e.target.value)} className="despachos-select">
+                                    <select value={articuloId} onChange={(e) => {setArticuloId(e.target.value); setCantidad(1);}} className="despachos-select" required>
                                         {articulos.length === 0 ? (
                                             <option value="">No hay materiales registrados en el catálogo</option>
                                         ) : (
@@ -330,9 +394,11 @@ export default function DespachoObra({ usuario: usuarioProp = null, obras: obras
                                     </button>
                                 </div>
 
-                                <button type="submit" className="despachos-btn-submit">
+                                <button type="submit" disabled={enviando || !selectedObra.id_obra || sinStockDisponible} className="despachos-btn-submit">
                                     <Truck size={17} />
-                                    <span>Emitir y Despachar a Obra</span>
+                                    <span>
+                                        {enviando ? 'Procesando Despacho...' : 'Emitir y Despachar a Obra'}
+                                    </span>
                                 </button>
                             </form>
                         </div>
@@ -359,12 +425,12 @@ export default function DespachoObra({ usuario: usuarioProp = null, obras: obras
                                     <div className="despachos-empty">
                                         Cargando movimientos de la obra...
                                     </div>
-                                ) : despachoObra.length === 0 ? (
+                                ) : despachosObra.length === 0 ? (
                                     <div className="despachos-empty">
                                         Aún no hay despachos registrados para esta obra.
                                     </div>
                                 ) : (
-                                    despachoObra.map((item, idx) => {
+                                    despachosObra.map((item, idx) => {
                                         const esDevolucion = (item.tipo_movimiento || '')
                                             .toLowerCase()
                                             .includes('devoluci');
@@ -377,7 +443,9 @@ export default function DespachoObra({ usuario: usuarioProp = null, obras: obras
                                                     </div>
                                                 </div>
                                                 <div className="despachos-item-right">
-                                                    <span className={`despachos-item-qty ${esDevolucion ? 'ingreso' : ''}`}>
+                                                    <span
+                                                        className={`despachos-item-qty ${esDevolucion ? 'ingreso' : ''}`}
+                                                    >
                                                         {esDevolucion ? '+' : ''}
                                                         {Math.abs(item.cantidad)} {item.unidad_medida || 'un'}
                                                     </span>
@@ -393,19 +461,23 @@ export default function DespachoObra({ usuario: usuarioProp = null, obras: obras
 
                             <div className="despachos-footer-count">
                                 <span>Total de movimientos en esta obra:</span>
-                                <strong>{despachoObra.length} registros</strong>
+                                <strong>{despachosObra.length} registros</strong>
                             </div>
                         </div>
                     </div>
 
                     {mostrarFirma && (
                         <FirmaTablet
-                            documento={guiaDespacho}
-                            onConfirmarFirma={(datosFirma) => {
-                                setDatosFirmaCapturada(datosFirma);
-                                setMostrarFirma(false);
-                            }}
+                            documento={guiaDespacho.trim() || 'Despacho a Obra'}
+                            onConfirmarFirma={(datosFirma) => { setDatosFirmaCapturada(datosFirma); setMostrarFirma(false); }}
                             onCancelar={() => setMostrarFirma(false)}
+                        />
+                    )}
+
+                    {mostrarComprobante && (
+                        <ComprobanteDespachoModal
+                            comprobante={ultimoComprobante}
+                            onClose={() => setMostrarComprobante(false)}
                         />
                     )}
                 </>
@@ -415,7 +487,7 @@ export default function DespachoObra({ usuario: usuarioProp = null, obras: obras
                 <MermasView
                     articulos={articulos}
                     cardex={cardex}
-                    onMovimientoRegistrado={cargarTodo}
+                    onMovimientoRegistrado={refrescarContador}
                 />
             )}
 
@@ -425,7 +497,7 @@ export default function DespachoObra({ usuario: usuarioProp = null, obras: obras
                     proveedores={proveedores}
                     articulos={articulos}
                     cardex={cardex}
-                    onMovimientoRegistrado={cargarTodo}
+                    onMovimientoRegistrado={refrescarContador}
                 />
             )}
         </div>

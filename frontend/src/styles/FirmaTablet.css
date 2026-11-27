@@ -129,7 +129,12 @@
     color: #ffffff;
     padding: 8px 16px;
     border-radius: 8px;
-    font-size: 12p;
+    font-size: 12px;
     font-weight: 700;
     cursor: pointer;
+}
+
+.firma-btn-confirm:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }

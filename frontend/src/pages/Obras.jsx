@@ -1,13 +1,20 @@
 import React, { useEffect, useState } from "react";
-import { Search, Edit2, Trash2, Plus } from "lucide-react";
+import { Search, Edit2, Trash2, Plus, Briefcase, Wrench, Package, Download } from "lucide-react";
 import { obraService, obtenerCardex } from "../services_api/obrasService";
 import { obtenerClientes } from "../services_api/inventarioService";
 import { obtenerUsuarioActual } from "../services_api/authService";
 import { formatearRutVisual } from './GestionUsuariosView';
-import '../styles/ObrasView.css'
+import TiposServicioView from "../components/TiposServicioView";
+import '../styles/ObrasView.css';
+
+// Devuelve la fecha actual.
+const obtenerFechaHoyISO = () => new Date().toLocaleDateString('en-CA');
+
+// Protege cada celda antes de guardarla en una planilla CSV.
+const limpiarCeldaCSV = (valor) => `"${String(valor ?? '').replace(/"/g, '""')}"`;
 
 const estadoInicialObra = {
-    fecha_inicio: new Date().toISOString().substring(0, 10),
+    fecha_inicio: obtenerFechaHoyISO(),
     id_cliente: '',
     id_supervisor: '',
     tecnico_asociado: '',
@@ -23,11 +30,18 @@ const CLASE_ESTADO = {
     Cancelada: 'obras-status-badge cancelada',  
 };
 
+// Pantalla principal para gestionar obras.
 export const ObrasPage = ({ usuario: usuarioProp = null }) => {
     const usuario = usuarioProp || obtenerUsuarioActual();
-    const esAdmin = usuario?.rol === 'administracion';
-    const esSupervisor = usuario?.rol === 'supervisor_obra';
+    const rol = usuario?.rol;
+    const esAdmin = rol === 'administracion';
+    const esSupervisor = rol === 'supervisor_obra';
     const puedeEditar = esAdmin || esSupervisor;
+    const puedeEliminar = esAdmin;
+    const puedeVerCostos = ['administracion', 'encargado_finanza', 'supervisor_obra'].includes(rol);
+
+    const [pestana, setPestana] = useState('obras');
+    const [triggerCrearServicio, setTriggerCrearServicio] = useState(0);
 
     const [obras, setObras] = useState([]);
     const [clientes, setClientes] = useState([]);
@@ -36,6 +50,7 @@ export const ObrasPage = ({ usuario: usuarioProp = null }) => {
     const [cardex, setCardex] = useState([]);
 
     const [modalObraAbierto, setModalObraAbierto] = useState(false);
+    const [obraDetalle, setObraDetalle] = useState(null);
     const [formObra, setFormObra] = useState(estadoInicialObra);
     const [editId, setEditId] = useState(null);
     const [busqueda, setBusqueda] = useState('');
@@ -44,7 +59,7 @@ export const ObrasPage = ({ usuario: usuarioProp = null }) => {
     const [error, setError] = useState('');
     const [cargando, setCargando] = useState(true);
 
-    // Carga las obras, clientes, tipos de servicio, supervisores e historial.
+    // Carga las obras, clientes, tipos de servicio, supervisores y movimientos.
     const cargarDatos = async () => {
         setCargando(true);
         try {
@@ -71,17 +86,27 @@ export const ObrasPage = ({ usuario: usuarioProp = null }) => {
         cargarDatos();
     }, []);
 
+    // Cambia entre pestañas (obras, tipos de servicio).
+    const cambiarPestana = (nuevaPestana) => {
+        setPestana(nuevaPestana);
+        setMensaje('');
+        setError('');
+        setTriggerCrearServicio(0);
+    };
+
+    // Abre el modal limpio para crear una obra nueva.
     const abrirModalNuevaObra = () => {
         setEditId(null);
         setError('');
         setFormObra({
             ...estadoInicialObra,
-            fecha_inicio: new Date().toISOString().substring(0, 10),
+            fecha_inicio: obtenerFechaHoyISO(),
             id_supervisor: esSupervisor ? usuario?.id_usuario || '' : '',
         });
         setModalObraAbierto(true);
     };
 
+    // Gestiona le edición de la obra seleccionada.
     const abrirModalEditarObra = (obra) => {
         setMensaje('');
         setError('');
@@ -97,16 +122,22 @@ export const ObrasPage = ({ usuario: usuarioProp = null }) => {
         setModalObraAbierto(true);
     };
 
-    // Guarda una obra nueva o actualiza los datos de una existente.
+    // Valida los datos antes de guardar o editar.
     const guardarObra = async (e) => {
         e.preventDefault();
         setMensaje('');
         setError('');
 
+        const tecnicoLimpio = formObra.tecnico_asociado.trim();
+        if (tecnicoLimpio.length < 3 || tecnicoLimpio.length > 80) {
+            setError('El nombre del técnico responsable debe tener entre 3 y 80 caracteres.');
+            return;
+        }
+
         const datosEnviar = {
             fecha_inicio: formObra.fecha_inicio,
             id_cliente: Number(formObra.id_cliente),
-            tecnico_asociado: formObra.tecnico_asociado.trim(),
+            tecnico_asociado: tecnicoLimpio,
             id_tipo_servicio: Number(formObra.id_tipo_servicio),
             estado: formObra.estado,
         };
@@ -150,22 +181,62 @@ export const ObrasPage = ({ usuario: usuarioProp = null }) => {
             await cargarDatos();
         } catch (err) {
             const detalle = err.response?.data?.detail;
-            setError(detalle || 'No se puede eliminar esta obra porque ya tiene materiales o registros asociados en el historial. Puede cambiar su estado a Finalizada o Cancelada.');
+            setError(
+                detalle || 
+                    'No se puede eliminar esta obra porque ya tiene materiales o registros asociados en el historial. Puede cambiar su estado a Finalizada o Cancelada.'
+            );
         }
     };
 
-    // Cuenta cuántos despachos de materiales se han enviado a una obra específica.
+    // Cuenta cuántos despachos de materiales se han enviado a la obra.
     const contarDespachosObra = (obra) => {
-        if (Array.isArray(obra.detalles) && obra.detalles.length > 0) {
+        if (Array.isArray(obra.detalles)) {
             return obra.detalles.length;
         }
-        return cardex.filter((m) => {
+        return 0;
+    };
+
+    // Agrupa los materiales entregados a una obra.
+    const obtenerResumenMaterialesObra = (obra) => {
+        if (!obra || !Array.isArray(obra.detalles)) return [];
+        const mapa = {};
+
+        obra.detalles.forEach((det) => {
+            const idArt = det.id_articulo;
+            if (!mapa[idArt]) {
+                mapa[idArt] = {
+                    id_articulo: idArt,
+                    nombre: det.articulo_nombre,
+                    codigo_barra: det.codigo_barra,
+                    unidad_nombre: det.unidad_nombre || 'un',
+                    precio_unitario: Number(det.precio_unitario || 0),
+                    despachado: 0,
+                    devuelto: 0,
+                };
+            }
+            mapa[idArt].despachado += Number(det.cantidad || 0);
+        });
+
+        cardex.forEach((m) => {
             const tipo = (m.tipo_movimiento || '').toLowerCase();
-            if (tipo.includes('registro de obra') || tipo.includes('modificación de obra')) return false;
-            const coincideId = m.id_obra && Number(m.id_obra) === Number(obra.id_obra);
-            const coincideNombre = (m.obra_destino || '').includes(`Obra #${obra.id_obra}`);
-            return coincideId || coincideNombre;    
-        }).length;
+            if (
+                tipo.includes('devoluci') &&
+                tipo.includes('obra') &&
+                Number(m.id_obra) === Number(obra.id_obra) &&
+                mapa[m.id_articulo]
+            ) {
+                mapa[m.id_articulo].devuelto += Math.abs(Number(m.cantidad || 0));
+            }
+        });
+
+        return Object.values(mapa).map((item) => {
+            const neto = Math.max(0, item.despachado - item.devuelto);
+            return {
+                ...item,
+                neto,
+                subtotalNeto: neto * item.precio_unitario,
+            };
+        });
     };
 
     const obrasFiltradas = obras.filter((o) => {
@@ -178,7 +249,7 @@ export const ObrasPage = ({ usuario: usuarioProp = null }) => {
             const supervisorTxt = (o.supervisor_nombre || '').toLowerCase();
             const tecnicoTxt = (o.tecnico_asociado || '').toLowerCase();
             const servicioTxt = (o.tipo_servicio_nombre || '').toLowerCase();
-            const codigoTxt = `ob-${o.id_obra}`.toLowerCase();
+            const codigoTxt = (o.codigo || `ob-${o.id_obra}`).toLowerCase();
             return (
                 clienteTxt.includes(q) ||
                 supervisorTxt.includes(q) ||
@@ -190,8 +261,47 @@ export const ObrasPage = ({ usuario: usuarioProp = null }) => {
         return true;
     });
 
+    // Descarga en una planilla CSV las obras.
+    const exportarObrasCSV = () => {
+        const encabezados = [
+            'Código', 'Fecha Inicio', 'Cliente', 'RUT Cliente', 'Tipo de Servicio',
+            'Supervisor', 'Técnico Responsable', 'Despachos', 'Estado',
+        ];
+        if (puedeVerCostos) encabezados.push('Costo Materiales ($)');
+
+        const filas = obrasFiltradas.map((o) => {
+            const estadoTexto =  o.estado === 'Activa' ? 'En proceso' : o.estado;
+            const fila = [
+                limpiarCeldaCSV(o.codigo || `OB-${o.id_obra}`),
+                limpiarCeldaCSV(o.fecha_inicio),
+                limpiarCeldaCSV(o.cliente_razon_social || o.cliente_nombre || ''),
+                limpiarCeldaCSV(formatearRutVisual(o.cliente_rut || '')),
+                limpiarCeldaCSV(o.tipo_servicio_nombre || ''),
+                limpiarCeldaCSV(o.supervisor_nombre || 'Sin asignar'),
+                limpiarCeldaCSV(o.tecnico_asociado || ''),
+                contarDespachosObra(o),
+                limpiarCeldaCSV(estadoTexto),
+            ];
+            if (puedeVerCostos) fila.push(Number(o.costo_total_materiales || 0));
+            return fila;
+        });
+
+        const contenido = '\uFEFF' + [encabezados.join(','), ...filas.map((f) => f.join(','))].join('\n');
+        const archivo = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(archivo);
+        const enlace = document.createElement('a');
+        enlace.href = url;
+        enlace.download = `obras_fyag_${obtenerFechaHoyISO()}.csv`;
+        document.body.appendChild(enlace);
+        enlace.click();
+        document.body.removeChild(enlace);
+        URL.revokeObjectURL(url);
+    };
+
     const totalEnProceso = obras.filter((o) => o.estado === 'En proceso' || o.estado === 'Activa').length;
     const totalFinalizadas = obras.filter((o) => o.estado === 'Finalizada').length;
+    const totalColumnasTabla = 8 + (puedeVerCostos ? 1 : 0) + 1;
+    const materialesModal = obraDetalle ? obtenerResumenMaterialesObra(obraDetalle) : [];
 
     return (
         <div className="contenedor-vista">
@@ -203,163 +313,223 @@ export const ObrasPage = ({ usuario: usuarioProp = null }) => {
                         </h1>
                         <p className="obras-subtitle">
                             {esSupervisor
-                                ? 'Administración de las obras a tu cargo, técnicos asignados y estados de avance'
-                                : 'Creación de proyectos, asignación de supervisores, técnicos responsables y control de estados'
+                                ? 'Administración de las obras a tu cargo, materiales asignados y estados de avance'
+                                : 'Creación de proyectos, asignación de supervisores, costos de materiales y control de estados'
                             }
                         </p>
                     </div>
 
-                    {puedeEditar && (
-                        <button type="button" onClick={abrirModalNuevaObra} className="obras-btn-add">
-                            <Plus size={16} />
-                            <span>Registrar Obra</span>
+                    <div className="obras-header-actions">
+                        {pestana === 'obras' && puedeEditar && (
+                            <button type="button" onClick={abrirModalNuevaObra} className="obras-btn-add">
+                                <Plus size={16} />
+                                <span>Registrar Obra</span>
+                            </button>
+                        )}
+                        {pestana === 'servicios' && esAdmin && (
+                            <button type="button" onClick={() => setTriggerCrearServicio((prev) => prev + 1)} className="obras-btn-add">
+                                <Plus size={16} />
+                                <span>Registrar Servicio</span>
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {esAdmin && (
+                    <div className="obras-tabs-bar">
+                        <button type="button" className={`obras-tab-item ${pestana === 'obras' ? 'active' : ''}`} onClick={() => cambiarPestana('obras')}>
+                            <Briefcase size={16} />
+                            <span>Obras y Proyectos</span>
+                            <span className="obras-tab-count">{obras.length}</span>
                         </button>
-                    )}
-                </div>
 
-                {mensaje && <div className="alerta-exito">{mensaje}</div>}
-                {error && !modalObraAbierto && <div className="alerta-error">{error}</div>}
+                        <button type="button" className={`obras-tab-item ${pestana === 'servicios' ? 'active' : ''}`} onClick={() => cambiarPestana('servicios')}>
+                            <Wrench size={16} />
+                            <span>Tipos de Servicio</span>
+                            <span className="obras-tab-count">{tiposServicio.length}</span>
+                        </button>
+                    </div>
+                )}
 
-                {/* Resumen rápido de estados */}
-                <div className="obras-summary-grid">
-                    <div className="obras-kpi-card">
-                        <div className="obras-kpi-label">{esSupervisor ? 'Mis Obras Registradas' : 'Total de Obras Registradas'}</div>
-                        <div className="obras-kpi-value">{obras.length}</div>
-                    </div>
-                    <div className="obras-kpi-card proceso">
-                        <div className="obras-kpi-label">Obras en Proceso (Habilitadas para Despacho)</div>
-                        <div className="obras-kpi-value">{totalEnProceso}</div>
-                    </div>
-                    <div className="obras-kpi-card">
-                        <div className="obras-kpi-label">Obras Finalizadas</div>
-                        <div className="obras-kpi-value">{totalFinalizadas}</div>
-                    </div>
-                </div>
+                {pestana === 'obras' && (
+                    <>
+                        {mensaje && <div className="alerta-exito">{mensaje}</div>}
+                        {error && !modalObraAbierto && <div className="alerta-error">{error}</div>}
 
-                <div className="obras-table-card">
-                    <div className="obras-toolbar">
-                        <div className="obras-search-box">
-                            <Search size={15} color="#64748b" />
-                            <input
-                                type="text"
-                                placeholder="Buscar por cliente, supervisor, técnico, código o servicio..."
-                                value={busqueda}
-                                onChange={(e) => setBusqueda(e.target.value)}
-                                className="obras-search-input"
-                            />
+                        {/* Resumen rápido de estados */}
+                        <div className="obras-summary-grid">
+                            <div className="obras-kpi-card">
+                                <div className="obras-kpi-label">
+                                    {esSupervisor ? 'Mis Obras Registradas' : 'Total de Obras Registradas'}
+                                </div>
+                                <div className="obras-kpi-value">{obras.length}</div>
+                            </div>
+                            <div className="obras-kpi-card proceso">
+                                <div className="obras-kpi-label">Obras en Proceso (Habilitadas para Despacho)</div>
+                                <div className="obras-kpi-value">{totalEnProceso}</div>
+                            </div>
+                            <div className="obras-kpi-card">
+                                <div className="obras-kpi-label">Obras Finalizadas</div>
+                                <div className="obras-kpi-value">{totalFinalizadas}</div>
+                            </div>
                         </div>
 
-                        <div className="obras-filter-group">
-                            {['Todas', 'En proceso', 'Finalizada', 'Suspendida', 'Cancelada'].map((est) => (
-                                <button
-                                    key={est}
-                                    type="button"
-                                    onClick={() => setFiltroEstado(est)}
-                                    className={`obras-filter-btn ${filtroEstado === est ? 'active' : ''}`}
-                                >{est}</button>
-                            ))}
-                        </div>
-                    </div>
+                        <div className="obras-table-card">
+                            <div className="obras-toolbar">
+                                <div className="obras-search-box">
+                                    <Search size={15} color="#64748b" />
+                                    <input
+                                        type="text"
+                                        maxLength={80}
+                                        placeholder="Buscar por cliente, supervisor, técnico, código o servicio..."
+                                        value={busqueda}
+                                        onChange={(e) => setBusqueda(e.target.value)}
+                                        className="obras-search-input"
+                                    />
+                                </div>
 
-                    <div className="obras-table-wrapper">
-                        <table className="obras-table">
-                            <thead>
-                                <tr>
-                                    <th>Código</th>
-                                    <th>Fecha Inicio</th>
-                                    <th>Cliente Mandante</th>
-                                    <th>Tipo de Servicio</th>
-                                    <th>Supervisor Encargado</th>
-                                    <th>Técnico Responsable</th>
-                                    <th>Envíos de Bodega</th>
-                                    <th>Estado</th>
-                                    {puedeEditar && <th>Acciones</th>}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {cargando ? (
-                                    <tr>
-                                        <td colSpan={puedeEditar ? 9 : 8} className="obras-empty">
-                                            Cargando listado de obras...
-                                        </td>
-                                    </tr>
-                                ) : obrasFiltradas.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={puedeEditar ? 9 : 8} className="obras-empty">
-                                            {esSupervisor
-                                                ? 'Aún no tienes obras asignadas a tu cargo. Puedes crear una desde el botón Registrar Obra.'
-                                                : 'No hay obras registradas con los filtros seleccionados.'
-                                            }
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    obrasFiltradas.map((o) => {
-                                        const estadoTexto = o.estado === 'Activa' ? 'En proceso' : o.estado;
-                                        const envios = contarDespachosObra(o);
-                                        return (
-                                            <tr key={o.id_obra}>
-                                                <td>
-                                                    <span className="obras-code-badge">
-                                                        {o.codigo || `OB-${o.id_obra}`}
-                                                    </span>
+                                <div className="obras-toolbar-right">
+                                    <div className="obras-filter-group">
+                                        {['Todas', 'En proceso', 'Finalizada', 'Suspendida', 'Cancelada'].map((est) => (
+                                            <button
+                                                key={est}
+                                                type="button"
+                                                onClick={() => setFiltroEstado(est)}
+                                                className={`obras-filter-btn ${filtroEstado === est ? 'active' : ''}`}
+                                            >{est}</button>
+                                        ))}
+                                    </div>
+
+                                    <button type="button" onClick={exportarObrasCSV} disabled={obrasFiltradas.length === 0} className="obras-btn-export">
+                                        <Download size={14} />
+                                        <span>Exportar CSV</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="obras-table-wrapper">
+                                <table className="obras-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Código</th>
+                                            <th>Fecha Inicio</th>
+                                            <th>Cliente Mandante</th>
+                                            <th>Tipo de Servicio</th>
+                                            <th>Supervisor Encargado</th>
+                                            <th>Técnico Responsable</th>
+                                            <th>Envíos de Bodega</th>
+                                            {puedeVerCostos && <th>Costo Materiales</th>}
+                                            <th>Estado</th>
+                                            <th>Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {cargando ? (
+                                            <tr>
+                                                <td colSpan={totalColumnasTabla} className="obras-empty">
+                                                    Cargando listado de obras...
                                                 </td>
-                                                <td>{o.fecha_inicio}</td>
-                                                <td>
-                                                    <div className="obras-client-name">
-                                                        {o.cliente_razon_social || o.cliente_nombre || `Cliente #${o.id_cliente}`}
-                                                    </div>
-                                                    {o.cliente_rut && (
-                                                        <div className="obras-client-rut">
-                                                            RUT: {formatearRutVisual(o.cliente_rut)} | {o.ubicacion}
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                <td>
-                                                    <span className="obras-service-tag">
-                                                        {o.tipo_servicio_nombre || `Servicio #${o.id_tipo_servicio}`}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <div className="obras-client-name">
-                                                        {o.supervisor_nombre || 'Sin asignar'}
-                                                    </div>
-                                                    {o.supervisor_rut && (
-                                                        <div className="obras-client-rut">
-                                                            {formatearRutVisual(o.supervisor_rut)}
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                <td>{o.tecnico_asociado}</td>
-                                                <td>
-                                                    <strong>{envios}</strong> {envios === 1 ? 'despacho' : 'despachos'}
-                                                </td>
-                                                <td>
-                                                    <span className={CLASE_ESTADO[estadoTexto] || 'obras-status-badge proceso'}>
-                                                        {estadoTexto}
-                                                    </span>
-                                                </td>
-                                                {puedeEditar && (
-                                                    <td>
-                                                        <div className="obras-actions-cell">
-                                                            <button type="button" className="obras-btn-edit" onClick={() => abrirModalEditarObra(o)} title="Modificar datos de la obra">
-                                                                <Edit2 size={13} />
-                                                                <span>Editar</span>
-                                                            </button>
-                                                            <button type="button" className="obras-btn-delete" onClick={() => handleDelete(o)} title="Eliminar obra">
-                                                                <Trash2 size={13} />
-                                                                <span>Eliminar</span>
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                )}
                                             </tr>
-                                        );
-                                    })
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                                        ) : obrasFiltradas.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={totalColumnasTabla} className="obras-empty">
+                                                    {esSupervisor
+                                                        ? 'Aún no tienes obras asignadas a tu cargo. Puedes crear una desde el botón Registrar Obra.'
+                                                        : 'No hay obras registradas con los filtros seleccionados.'
+                                                    }
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            obrasFiltradas.map((o) => {
+                                                const estadoTexto = o.estado === 'Activa' ? 'En proceso' : o.estado;
+                                                const envios = contarDespachosObra(o);
+                                                return (
+                                                    <tr key={o.id_obra}>
+                                                        <td>
+                                                            <span className="obras-code-badge">
+                                                                {o.codigo || `OB-${o.id_obra}`}
+                                                            </span>
+                                                        </td>
+                                                        <td>{o.fecha_inicio}</td>
+                                                        <td>
+                                                            <div className="obras-client-name">
+                                                                {o.cliente_razon_social || o.cliente_nombre || `Cliente #${o.id_cliente}`}
+                                                            </div>
+                                                            {o.cliente_rut && (
+                                                                <div className="obras-client-rut">
+                                                                    RUT: {formatearRutVisual(o.cliente_rut)} | {o.ubicacion}
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                        <td>
+                                                            <span className="obras-service-tag">
+                                                                {o.tipo_servicio_nombre || `Servicio #${o.id_tipo_servicio}`}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <div className="obras-client-name">
+                                                                {o.supervisor_nombre || 'Sin asignar'}
+                                                            </div>
+                                                            {o.supervisor_rut && (
+                                                                <div className="obras-client-rut">
+                                                                    {formatearRutVisual(o.supervisor_rut)}
+                                                                </div>
+                                                            )}
+                                                        </td>
+                                                        <td>{o.tecnico_asociado}</td>
+                                                        <td>
+                                                            <strong>{envios}</strong> {envios === 1 ? 'despacho' : 'despachos'}
+                                                        </td>
+                                                        {puedeVerCostos && (
+                                                            <td className="obras-cost">
+                                                                ${Number(o.costo_total_materiales || 0).toLocaleString('es-CL')}
+                                                            </td>
+                                                        )}
+                                                        <td>
+                                                            <span className={CLASE_ESTADO[estadoTexto] || 'obras-status-badge proceso'}>
+                                                                {estadoTexto}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            <div className="obras-actions-cell">
+                                                                <button type="button" className="obras-btn-view" onClick={() => setObraDetalle(o)} title="Ver materiales consumidos por esta obra">
+                                                                    <Package size={13} />
+                                                                    <span>Materiales</span>
+                                                                </button>
+                                                                {puedeEditar && (
+                                                                    <button type="button" className="obras-btn-edit" onClick={() => abrirModalEditarObra(o)} title="Modificar datos de la obra">
+                                                                        <Edit2 size={13} />
+                                                                        <span>Editar</span>
+                                                                    </button>
+                                                                )}
+                                                                {puedeEliminar && (
+                                                                    <button type="button" className="obras-btn-delete" onClick={() => handleDelete(o)} title="Eliminar obra">
+                                                                        <Trash2 size={13} />
+                                                                        <span>Eliminar</span>
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </>
+                )}
+
+                {pestana === 'servicios' && esAdmin && (
+                    <TiposServicioView
+                        tiposServicio={tiposServicio}
+                        obras={obras}
+                        cargando={cargando}
+                        onDatosActualizados={cargarDatos}
+                        triggerCrear={triggerCrearServicio}
+                    />
+                )}
 
                 {modalObraAbierto && (
                     <div className="obras-modal-overlay">
@@ -445,6 +615,8 @@ export const ObrasPage = ({ usuario: usuarioProp = null }) => {
                                         <label className="obras-label">Técnico Responsable en Terreno</label>
                                         <input
                                             type="text"
+                                            minLength={3}
+                                            maxLength={80}
                                             className="obras-input"
                                             placeholder="Ej: Javier Soto"
                                             value={formObra.tecnico_asociado}
@@ -461,6 +633,100 @@ export const ObrasPage = ({ usuario: usuarioProp = null }) => {
                                     </button>
                                 </div>
                             </form>
+                        </div>
+                    </div>
+                )}
+
+                {obraDetalle && (
+                    <div className="obras-modal-overlay">
+                        <div className="obras-modal-card large">
+                            <div className="obras-modal-header">
+                                <div className="obras-modal-title">
+                                    Materiales de {obraDetalle.codigo || `OB-${obraDetalle.id_obra}`} | {' '}
+                                    {obraDetalle.cliente_razon_social || obraDetalle.cliente_nombre}
+                                </div>
+                                <button type="button" onClick={() => setObraDetalle(null)} className="obras-modal-close">X</button>
+                            </div>
+
+                            <div className="obras-modal-form">
+                                <div className="obras-detail-summary">
+                                    <div>
+                                        <strong>Servicio:</strong> {obraDetalle.tipo_servicio_nombre}
+                                    </div>
+                                    <div>
+                                        <strong>Supervisor:</strong> {obraDetalle.supervisor_nombre || 'Sin asignar'}
+                                    </div>
+                                    <div>
+                                        <strong>Técnico:</strong> {obraDetalle.tecnico_asociado}
+                                    </div>
+                                    <div>
+                                        <strong>Estado:</strong> {obraDetalle.estado}
+                                    </div>
+                                </div>
+
+                                {materialesModal.length === 0 ? (
+                                    <div className="obras-empty">
+                                        Todavía no se han despachado materiales a esta obra.
+                                    </div>
+                                ) : (
+                                    <div className="obras-table-wrapper">
+                                        <table className="obras-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Material</th>
+                                                    <th>Entregado</th>
+                                                    <th>Devuelto</th>
+                                                    <th>Consumo Neto</th>
+                                                    {puedeVerCostos && <th>Precio Lista</th>}
+                                                    {puedeVerCostos && <th>Subtotal</th>}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {materialesModal.map((m) => (
+                                                    <tr key={m.id_articulo}>
+                                                        <td>
+                                                            <div className="obras-client-name">{m.nombre}</div>
+                                                            <div className="obras-client-rut">Cód: {m.codigo_barra}</div>
+                                                        </td>
+                                                        <td>
+                                                            {m.despachado} {m.unidad_nombre}
+                                                        </td>
+                                                        <td>
+                                                            {m.devuelto} {m.unidad_nombre}
+                                                        </td>
+                                                        <td>
+                                                            <strong>
+                                                                {m.neto} {m.unidad_nombre}
+                                                            </strong>
+                                                        </td>
+                                                        {puedeVerCostos && (
+                                                            <td>${m.precio_unitario.toLocaleString('es-CL')}</td>
+                                                        )}
+                                                        {puedeVerCostos && (
+                                                            <td className="obras-cost">
+                                                                ${m.subtotalNeto.toLocaleString('es-CL')}
+                                                            </td>
+                                                        )}
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+
+                                {puedeVerCostos && (
+                                    <div className="obras-detail-total">
+                                        <span>Costo total en materiales de la obra:</span>
+                                        <strong>
+                                            ${Number(obraDetalle.costo_total_materiales || 0).toLocaleString('es-CL')}
+                                        </strong>
+                                    </div>
+                                )}
+
+                                <div className="obras-modal-actions">
+                                    <button type="button" onClick={() => setObraDetalle(null)} className="obras-btn-cancel">Cerrar</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}

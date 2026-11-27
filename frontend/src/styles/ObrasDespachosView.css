@@ -276,7 +276,7 @@
     background-color: #ffffff;
     padding: 8px;
     border-radius: 12px;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-borde);
     box-shadow: var(--sombra-suave);
     margin-bottom: 18px;
 }
@@ -441,4 +441,159 @@
 
 .despachos-item-qty.ingreso {
     color: #15803d;
+}
+
+.despachos-btn-comprobante {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background-color: #ffffff;
+    border: 1px solid #059669;
+    color: #065f46;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.despachos-btn-comprobante:hover {
+    background-color: #d1fae5;
+}
+
+.despachos-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 110;
+    padding: 16px;
+}
+
+.despachos-modal-card {
+    background-color: #ffffff;
+    border-radius: 16px;
+    max-width: 540px;
+    width: 100%;
+    max-height: 92vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    border: 1px solid #cbd5e1;
+}
+
+.despachos-modal-header {
+    background-color: var(--color-primario);
+    color: #ffffff;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.despachos-modal-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15.5px;
+    font-weight: 800;
+}
+
+.despachos-modal-close {
+    background: none;
+    border: none;
+    color: #ffffff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.despachos-modal-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.despachos-comprobante-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 14px;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 12.5px;
+}
+
+.despachos-comprobante-grid small {
+    display: block;
+    color: #64748b;
+    font-size: 11px;
+}
+
+.despachos-comprobante-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+}
+
+.despachos-comprobante-firma {
+    text-align: center;
+    background-color: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.despachos-comprobante-firma small {
+    display: block;
+    color: #64748b;
+    margin-bottom: 6px;
+}
+
+.despachos-comprobante-firma img {
+    max-width: 100%;
+    max-height: 95px;
+}
+
+.despachos-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding-top: 8px;
+    border-top: 1px solid #f1f5f9;
+}
+
+.despachos-btn-cancel {
+    padding: 9px 16px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    background-color: #ffffff;
+    color: #475569;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.despachos-btn-print {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 16px;
+    border-radius: 8px;
+    border: none;
+    background-color: var(--color-primario);
+    color: #ffffff;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.despachos-btn-print:hover {
+    background-color: var(--color-primario-hover);
 }

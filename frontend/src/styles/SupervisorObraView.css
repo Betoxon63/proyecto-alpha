@@ -256,8 +256,34 @@
     margin-top: 4px;
 }
 
+.supervisor-faena-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.supervisor-meta-chip {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background-color: #eff6ff;
+  color: #1d4ed8;
+}
+
+.supervisor-cost-chip {
+  font-size: 11.5px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
 @media (max-width: 900px) {
-    .supervisor-grid-2cols {
-        grid-template-columns: 1fr;
-    }
+  .supervisor-grid-2cols {
+      grid-template-columns: 1fr;
+  }
 }

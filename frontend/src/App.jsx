@@ -13,7 +13,6 @@ import ComprasView from './pages/ComprasView';
 import FinanzasView from './pages/FinanzasView';
 import SolicitudesView from './pages/SolicitudesView';
 import GestionUsuariosView from './pages/GestionUsuariosView';
-import DesktopAdminCardexView from './pages/DesktopAdminCardexView';
 import { ObrasPage } from './pages/Obras';
 
 import { obtenerUsuarioActual, iniciarMonitorInactividad, } from './services_api/authService';
@@ -232,20 +231,6 @@ function AppContent() {
             />
 
             <Route
-                path='/terreno/supervision'
-                element={
-                    <RutaProtegidaRBAC
-                        usuario={usuario}
-                        rolesPermitidos={['administracion', 'supervisor_obra']}
-                    >
-                        <div className='contenedor-vista'>
-                            <SupervisorObraView />
-                        </div>
-                    </RutaProtegidaRBAC>
-                }
-            />
-
-            <Route
                 path='/entidades'
                 element={
                     <RutaProtegidaRBAC
@@ -281,18 +266,6 @@ function AppContent() {
                         <div className='contenedor-vista'>
                             <GestionUsuariosView usuarioActual={usuario} />
                         </div>
-                    </RutaProtegidaRBAC>
-                }
-            />
-
-            <Route
-                path='/portal-admin'
-                element={
-                    <RutaProtegidaRBAC usuario={usuario} rolesPermitidos={['administracion']}>
-                        <DesktopAdminCardexView
-                            usuario={usuario}
-                            onLogout={manejarLogout}
-                        />
                     </RutaProtegidaRBAC>
                 }
             />

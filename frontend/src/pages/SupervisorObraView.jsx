@@ -1,64 +1,91 @@
-import React, { useState, useEffect } from "react";
-import { Building2, Boxes, Search, CheckCircle, PenTool, FileCheck, Lock } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { Building2, Boxes, Search, CheckCircle, PenTool, FileCheck, Lock } from 'lucide-react';
 import FirmaTablet from '../components/FirmaTablet';
-import { obtenerArticulos } from "../services_api/inventarioService";
+import AlertaStock from '../components/AlertaStock';
+import { obtenerArticulos } from '../services_api/inventarioService';
 import { obtenerObras, obtenerCardex } from '../services_api/obrasService';
-import { obtenerUsuarioActual } from "../services_api/authService";
+import { obtenerUsuarioActual } from '../services_api/authService';
 import '../styles/SupervisorObraView.css';
 
-export default function SupervisorObraView({ articulos: articulosProp = null, obras: obrasProp = null, cardex: cardexProp = null, }) {
+const CLAVE_FIRMAS = 'fyag_firmas_recepcion';
+
+// Recupera las firmas de recepción guardadas en el dispositivo del supervisor.
+const cargarFirmasGuardadas = () => {
+    try {
+        const raw = localStorage.getItem(CLAVE_FIRMAS);
+        return raw ? JSON.parse(raw) : {};
+    } catch {
+        return {};
+    }
+};
+
+// Portal de terreno del Supervisor para revisar stock disponible y confirmar recepciones de sus obras.
+export default function SupervisorObraView({
+    articulos: articulosProp = null,
+    obras: obrasProp = null,
+    cardex: cardexProp = null,
+}) {
     const usuarioActual = obtenerUsuarioActual();
     const [articulos, setArticulos] = useState(articulosProp || []);
     const [obras, setObras] = useState(obrasProp || []);
     const [cardex, setCardex] = useState(cardexProp || []);
+    const [cargando, setCargando] = useState(!(articulosProp && obrasProp && cardexProp));
     const [selectedObraId, setSelectedObraId] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [firmandoDoc, setFirmandoDoc] = useState(null);
-    const [firmasGuardadas, setFirmasGuardadas] = useState({});
+    const [firmasGuardadas, setFirmasGuardadas] = useState(() => cargarFirmasGuardadas());
 
+    // Carga el catálogo, las obras asignadas al supervisor y sus despachos.
     useEffect(() => {
         if (articulosProp && obrasProp && cardexProp) {
             setArticulos(articulosProp);
             setObras(obrasProp);
             setCardex(cardexProp);
+            setCargando(false);
             if (obrasProp.length > 0 && !selectedObraId) {
                 setSelectedObraId(String(obrasProp[0].id_obra || obrasProp[0].id));
             }
             return;
         }
 
+        setCargando(true);
         Promise.all([
-            obtenerArticulos().catch(() => ({ data: [] })), 
-            obtenerObras(),
+            obtenerArticulos().catch(() => ({ data: [] })),
+            obtenerObras().catch(() => []),
             obtenerCardex().catch(() => []),
-        ]).then(([resArt, dataObras, dataCardex]) => {
-            const listaArt = resArt?.data || [];
-            const listaObras = Array.isArray(dataObras) ? dataObras : [];
-            const listaCardex = Array.isArray(dataCardex) ? dataCardex : [];
-            setArticulos(listaArt);
-            setObras(listaObras);
-            setCardex(listaCardex);
-            if (listaObras.length > 0 && !selectedObraId) {
-                setSelectedObraId(String(listaObras[0].id_obra || listaObras[0].id));
-            }
-        }).catch(() => {});
+        ])
+            .then(([resArt, dataObras, dataCardex]) => {
+                const listaArt = resArt?.data || [];
+                const listaObras = Array.isArray(dataObras) ? dataObras : [];
+                const listaCardex = Array.isArray(dataCardex) ? dataCardex : [];
+                setArticulos(listaArt);
+                setObras(listaObras);
+                setCardex(listaCardex);
+                if (listaObras.length > 0 && !selectedObraId) {
+                    setSelectedObraId(String(listaObras[0].id_obra || listaObras[0].id));
+                }
+            })
+            .finally(() => setCargando(false));
     }, [articulosProp, obrasProp, cardexProp]);
 
-    const obraActual = 
+    const obraActual =
         obras.find((o) => String(o.id_obra || o.id) === String(selectedObraId)) || obras[0] || null;
 
-    // Filtra los despachos y devoluciones únicamente de la obra asignada al supervisor.
-    const despachosRecibidos = obraActual ? cardex.filter((m) => {
-        const tipo = (m.tipo_movimiento || '').toLowerCase();
-        if (tipo.includes('registro de obra') || tipo.includes('modificación de obra')) return false;
-        const coincideId = obraActual.id_obra && m.id_obra && Number(m.id_obra) === Number(obraActual.id_obra);
-        const destino = (m.obra_destino || '').toLowerCase();
-        const coincideTexto =
-            (tipo.includes('salida') || tipo.includes('devoluci') || Number(m.cantidad) < 0) &&
-            (destino.includes((obraActual.nombre || '').toLowerCase()) ||
-                destino.includes(`obra #${obraActual.id_obra}`));
-        return coincideId || coincideTexto;
-    }) : [];
+    // Filtra los despachos y devoluciones únicamente de la obra seleccionada.
+    const despachosRecibidos = obraActual
+        ? cardex.filter((m) => {
+              const tipo = (m.tipo_movimiento || '').toLowerCase();
+              if (tipo.includes('registro de obra') || tipo.includes('modificación de obra')) return false;
+              const coincideId =
+                  obraActual.id_obra && m.id_obra && Number(m.id_obra) === Number(obraActual.id_obra);
+              const destino = (m.obra_destino || '').toLowerCase();
+              const coincideTexto =
+                  (tipo.includes('salida') || tipo.includes('devoluci') || Number(m.cantidad) < 0) &&
+                  (destino.includes((obraActual.nombre || '').toLowerCase()) ||
+                      destino.includes(`obra #${obraActual.id_obra}`));
+              return coincideId || coincideTexto;
+          })
+        : [];
 
     const articulosFiltrados = articulos.filter((a) => {
         const q = searchTerm.toLowerCase();
@@ -67,22 +94,31 @@ export default function SupervisorObraView({ articulos: articulosProp = null, ob
         return a.nombre?.toLowerCase().includes(q) || codigo.includes(q) || categoria.includes(q);
     });
 
+    // Guarda la firma de recepción y la conserva en el dispositivo para no perderla al recargar.
     const handleConfirmarFirma = ({ firmaUrl, fecha }) => {
         if (!firmandoDoc) return;
         const idMov = firmandoDoc.id_movimiento || firmandoDoc.id_movimiento_articulo;
-        setFirmasGuardadas((prev) => ({
-            ...prev,
-            [idMov]: {
-                firmado: true,
-                fecha,
-                firmaUrl,
-                supervisor: usuarioActual?.nombre || 'Supervisor de Terreno',
-            },
-        }));
+        setFirmasGuardadas((prev) => {
+            const actualizado = {
+                ...prev,
+                [idMov]: {
+                    firmado: true,
+                    fecha,
+                    firmaUrl,
+                    supervisor: usuarioActual?.nombre || 'Supervisor de Terreno',
+                },
+            };
+            try {
+                localStorage.setItem(CLAVE_FIRMAS, JSON.stringify(actualizado));
+            } catch {
+                // Si el navegador no permite guardar localmente, se mantiene en memoria.
+            }
+            return actualizado;
+        });
         setFirmandoDoc(null);
     };
 
-    return(
+    return (
         <div className="supervisor-container">
             <div className="supervisor-header">
                 <div>
@@ -90,12 +126,12 @@ export default function SupervisorObraView({ articulos: articulosProp = null, ob
                     <p className="supervisor-subtitle">
                         Consulta de stock disponible en bodega, seguimiento de envíos a tus obras asignadas y firma de recepción
                     </p>
-               </div>
+                </div>
 
-               <div className="supervisor-badge-role">
+                <div className="supervisor-badge-role">
                     <Lock size={14} color="#7c3aed" />
                     <span>Supervisión: Solo muestra las obras asignadas a tu cargo</span>
-               </div>
+                </div>
             </div>
 
             <div className="supervisor-selector-bar">
@@ -110,19 +146,33 @@ export default function SupervisorObraView({ articulos: articulosProp = null, ob
                                 <>
                                     {obraActual.nombre}{' '}
                                     <span className="supervisor-faena-client">
-                                        {obraActual.cliente || obraActual.tecnico_asociado}
+                                        · Técnico: {obraActual.tecnico_asociado}
                                     </span>
                                 </>
                             ) : (
                                 'Sin obras asignadas a tu cargo'
                             )}
                         </div>
+                        {obraActual && (
+                            <div className="supervisor-faena-meta">
+                                <span className="supervisor-meta-chip">{obraActual.estado}</span>
+                                <span className="supervisor-cost-chip">
+                                    Costo en materiales: $
+                                    {Number(obraActual.costo_total_materiales || 0).toLocaleString('es-CL')}
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 <div className="supervisor-change-faena">
                     <span className="supervisor-change-label">Cambiar Obra:</span>
-                    <select value={selectedObraId} onChange={(e) => setSelectedObraId(e.target.value)} className="supervisor-select" disabled={obras.length === 0}>
+                    <select
+                        value={selectedObraId}
+                        onChange={(e) => setSelectedObraId(e.target.value)}
+                        className="supervisor-select"
+                        disabled={obras.length === 0}
+                    >
                         {obras.length === 0 ? (
                             <option value="">No tienes obras asignadas todavía</option>
                         ) : (
@@ -150,6 +200,7 @@ export default function SupervisorObraView({ articulos: articulosProp = null, ob
                         <Search size={16} color="#64748b" />
                         <input
                             type="text"
+                            maxLength={80}
                             placeholder="Buscar gas, válvula, cobre..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -158,7 +209,9 @@ export default function SupervisorObraView({ articulos: articulosProp = null, ob
                     </div>
 
                     <div className="supervisor-items-scroll">
-                        {articulosFiltrados.length === 0 ? (
+                        {cargando ? (
+                            <div className="supervisor-empty-state">Cargando disponibilidad de bodega...</div>
+                        ) : articulosFiltrados.length === 0 ? (
                             <div className="supervisor-empty-state">
                                 No se encontraron materiales en el catálogo con ese filtro.
                             </div>
@@ -170,7 +223,7 @@ export default function SupervisorObraView({ articulos: articulosProp = null, ob
                                         <div>
                                             <div className="supervisor-item-name">{art.nombre}</div>
                                             <div className="supervisor-item-sub">
-                                                {art.codigo_barra || art.codigo_interno}{' '}
+                                                {art.codigo_barra || art.codigo_interno} ·{' '}
                                                 {art.categoria_nombre || art.categoria}
                                             </div>
                                         </div>
@@ -179,9 +232,12 @@ export default function SupervisorObraView({ articulos: articulosProp = null, ob
                                             <div className={`supervisor-item-qty ${esCritico ? 'critico' : ''}`}>
                                                 {art.stock_disponible} {art.unidad_nombre || art.unidad_medida || 'un'}
                                             </div>
-                                            <span className={`supervisor-item-badge ${esCritico ? 'critico' : ''}`}>
-                                                {esCritico ? 'Stock Bajo' : 'Disponible'}
-                                            </span>
+                                            <div style={{ marginTop: 4 }}>
+                                                <AlertaStock
+                                                    disponible={art.stock_disponible}
+                                                    minimo={art.stock_minimo}
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 );
@@ -195,14 +251,15 @@ export default function SupervisorObraView({ articulos: articulosProp = null, ob
                         <FileCheck size={18} color="#116530" />
                         <span>
                             {obraActual
-                                ? `Materiales Enviados y Devueltos (${obraActual.nombre})`
-                                : 'Materiales de la Obra'
-                            }
+                                ? `Materiales Enviados y Devueltos (${obraActual.codigo || obraActual.nombre})`
+                                : 'Materiales de la Obra'}
                         </span>
                     </div>
 
                     <div className="supervisor-items-scroll">
-                        {!obraActual ? (
+                        {cargando ? (
+                            <div className="supervisor-empty-state">Cargando envíos de la obra...</div>
+                        ) : !obraActual ? (
                             <div className="supervisor-empty-state">
                                 Aún no tienes obras asignadas. Puedes registrar una en la sección Gestión de Obras.
                             </div>
@@ -241,7 +298,11 @@ export default function SupervisorObraView({ articulos: articulosProp = null, ob
                                                     </span>
                                                 </div>
                                             ) : (
-                                                <button type="button" onClick={() => setFirmandoDoc(item)} className="supervisor-btn-sign">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setFirmandoDoc(item)}
+                                                    className="supervisor-btn-sign"
+                                                >
                                                     <PenTool size={12} />
                                                     <span>Firmar Recepción</span>
                                                 </button>
