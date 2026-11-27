@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { Bell, Package, ClipboardList, History, Truck, Briefcase, Building2, Users, LogOut, Menu, X, ChevronLeft, ChevronRight, } from 'lucide-react';
+import { Bell, Package, ClipboardList, History, Truck, Briefcase, Building2, Users, LogOut, Menu, X, ChevronLeft, ChevronRight, Sun, Moon } from 'lucide-react';
 import { logoutUsuario } from '../services_api/authService';
 import logoFyag from '../assets/logo.png';
 import '../styles/NavbarRBAC.css'
@@ -38,6 +38,8 @@ const NavbarRBAC = ({
     stockCriticoCount = 0,
     expandida = false,
     onToggleExpandida,
+    temaOscuro = false,
+    onToggleTema,
 }) => {
     const navigate = useNavigate();
     // Controla la apertura del menú deslizable cuando se usa en el celular o tablet.
@@ -125,24 +127,24 @@ const NavbarRBAC = ({
                     <span>FYAG SpA</span>
                 </div>
 
-                {puedeVerAlertas ? (
-                    <button
-                        type='button'
-                        onClick={onOpenStockAlerts}
-                        className='sidebar-mobile-alert'
-                        title='Ver materiales con pocas unidades disponibles'
-                    >
-                        <Bell
-                            size={18}
-                            className={stockCriticoCount > 0 ? 'navbar-bell-active' : 'navbar-bell-normal'}
-                        />
-                        {stockCriticoCount > 0 && (
-                            <span className='navbar-alert-badge'>{stockCriticoCount}</span>
-                        )}
-                    </button>
-                ) : (
-                    <div className='sidebar-mobile-spacer' />
-                )}
+                <div className='sidebar-mobile-right'>
+                    {onToggleTema && (
+                        <button type='button' onClick={onToggleTema} className='sidebar-mobile-theme' title={temaOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'} aria-label={temaOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}>
+                            {temaOscuro ? <Sun size={18} /> : <Moon size={18} />}
+                        </button>
+                    )}
+
+                    {puedeVerAlertas ? (
+                        <button type='button' onClick={onOpenStockAlerts} className='sidebar-mobile-alert' title='Ver materiales con pocas unidades disponibles'>
+                            <Bell size={18} className={stockCriticoCount > 0 ? 'navbar-bell-active' : 'navbar-bell-normal'}/>
+                            {stockCriticoCount > 0 && (
+                                <span className='navbar-alert-badge'>{stockCriticoCount}</span>
+                            )}
+                        </button>
+                    ) : (
+                        <div className='sidebar-mobile-spacer' />
+                    )}
+                </div>
             </header>
 
             {/* Fondo semitransparente que cierra el menú al tocar afuera en dispositivos móviles */}
@@ -213,6 +215,24 @@ const NavbarRBAC = ({
 
                 {/* Sección inferior con alertas de stock, perfil del trabajador y cierre de sesión */}
                 <div className='sidebar-footer'>
+                    {onToggleTema && (
+                        <button
+                            type='button'
+                            onClick={onToggleTema}
+                            className='sidebar-theme-btn'
+                            title={temaOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+                            aria-label={temaOscuro ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+                        >
+                            {temaOscuro ? (
+                                <Sun size={18} className='sidebar-link-icon sidebar-theme-sun' />
+                            ) : (
+                                <Moon size={18} className='sidebar-link-icon' />
+                            )}
+                            <span className='sidebar-theme-label'>
+                                {temaOscuro ? 'Modo Claro' : 'Modo Oscuro'}
+                            </span>
+                        </button>
+                    )}
                     {puedeVerAlertas && (
                         <button
                             type='button'

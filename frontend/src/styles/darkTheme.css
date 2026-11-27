@@ -1,0 +1,620 @@
+/* Paleta y adaptaciones accesibles del Modo Oscuro FYAG SpA */
+
+[data-theme='dark'] {
+    color-scheme: dark;
+    --color-primario: #15803d;
+    --color-primario-hover: #166534;
+    --color-primario-claro: #14532d;
+    --color-fondo: #0b1220;
+    --color-superficie: #111c2d;
+    --color-superficie-suave: #162235;
+    --color-texto: #f1f5f9;
+    --color-texto-secundario: #cbd5e1;
+    --color-texto-suave: #94a3b8;
+    --color-borde: #263449;
+    --color-borde-input: #334155;
+    --sombra-suave: 0 2px 6px rgba(0, 0, 0, 0.35);
+    --sombra-modal: 0 25px 50px -12px rgba(0, 0, 0, 0.65);
+}
+
+/* Barra lateral y barra móvil */
+[data-theme='dark'] .sidebar-fyag,
+[data-theme='dark'] .sidebar-mobile-topbar {
+    background-color: #0d3b22;
+    border-right: 1px solid #14532d;
+}
+
+[data-theme='dark'] .sidebar-toggle-btn {
+    background-color: #111c2d;
+    border-color: #22c55e;
+    color: #4ade80;
+}
+
+[data-theme='dark'] .sidebar-link.active {
+    background-color: #162235;
+    color: #4ade80;
+}
+
+/* Superficies principales (tarjetas, barras de pestañas, filtros y modales) */
+[data-theme='dark'] .catalogo-tabs-bar,
+[data-theme='dark'] .catalogo-table-card,
+[data-theme='dark'] .catalogo-kpi-card,
+[data-theme='dark'] .catalogo-resumen-card,
+[data-theme='dark'] .catalogo-mobile-card,
+[data-theme='dark'] .catalogo-modal-card,
+[data-theme='dark'] .solicitudes-table-card,
+[data-theme='dark'] .solicitudes-modal-card,
+[data-theme='dark'] .compras-tabs-bar,
+[data-theme='dark'] .compras-table-card,
+[data-theme='dark'] .compras-modal-card,
+[data-theme='dark'] .facturas-container,
+[data-theme='dark'] .finanzas-metric-card,
+[data-theme='dark'] .finanzas-table-card,
+[data-theme='dark'] .obras-tabs-bar,
+[data-theme='dark'] .obras-kpi-card,
+[data-theme='dark'] .obras-table-card,
+[data-theme='dark'] .obras-modal-card,
+[data-theme='dark'] .despachos-tabs-bar,
+[data-theme='dark'] .despachos-card,
+[data-theme='dark'] .despachos-modal-card,
+[data-theme='dark'] .supervisor-selector-bar,
+[data-theme='dark'] .supervisor-col-card,
+[data-theme='dark'] .cardex-tabs-bar,
+[data-theme='dark'] .cardex-filters-card,
+[data-theme='dark'] .cardex-table-card,
+[data-theme='dark'] .stock-modal-container,
+[data-theme='dark'] .firma-modal-card,
+[data-theme='dark'] .login-card,
+[data-theme='dark'] .usuarios-rbac-card,
+[data-theme='dark'] .usuarios-table-card,
+[data-theme='dark'] .usuarios-modal-card,
+[data-theme='dark'] .dashboard-badge-date,
+[data-theme='dark'] .dashboard-kpi-card,
+[data-theme='dark'] .dashboard-kpi-card-warning,
+[data-theme='dark'] .dashboard-card-section,
+[data-theme='dark'] .dashboard-obra-card {
+    background-color: var(--color-superficie);
+    border-color: var(--color-borde);
+    color: var(--color-texto);
+}
+
+/* Sub-bloques, buscadores, columnas internas y cajas secundarias */
+[data-theme='dark'] .catalogo-search-box,
+[data-theme='dark'] .catalogo-category-filter,
+[data-theme='dark'] .catalogo-mobile-stats,
+[data-theme='dark'] .catalogo-urgente-item,
+[data-theme='dark'] .solicitudes-search-box,
+[data-theme='dark'] .solicitudes-resumen-box,
+[data-theme='dark'] .solicitudes-descuentos-box,
+[data-theme='dark'] .compras-search-box,
+[data-theme='dark'] .facturas-left-column,
+[data-theme='dark'] .facturas-discounts-panel,
+[data-theme='dark'] .facturas-info-box,
+[data-theme='dark'] .facturas-total-item,
+[data-theme='dark'] .finanzas-search-box,
+[data-theme='dark'] .finanzas-period-box,
+[data-theme='dark'] .obras-search-box,
+[data-theme='dark'] .obras-detail-summary,
+[data-theme='dark'] .despachos-sign-box,
+[data-theme='dark'] .despachos-history-item,
+[data-theme='dark'] .despachos-disabled-box,
+[data-theme='dark'] .despachos-audit-note,
+[data-theme='dark'] .despachos-comprobante-grid,
+[data-theme='dark'] .despachos-comprobante-item,
+[data-theme='dark'] .despachos-comprobante-firma,
+[data-theme='dark'] .supervisor-search-box,
+[data-theme='dark'] .supervisor-item-row,
+[data-theme='dark'] .supervisor-select,
+[data-theme='dark'] .cardex-input-box,
+[data-theme='dark'] .cardex-footer-note,
+[data-theme='dark'] .stock-modal-footer,
+[data-theme='dark'] .stock-modal-item,
+[data-theme='dark'] .dashboard-flow-item,
+[data-theme='dark'] .usuarios-search-box,
+[data-theme='dark'] .usuarios-rbac-item {
+    background-color: var(--color-superficie-suave);
+    border-color: var(--color-borde);
+    color: var(--color-texto);
+}
+
+/* Inputs, selectores y áreas de texto */
+[data-theme='dark'] input,
+[data-theme='dark'] select,
+[data-theme='dark'] textarea,
+[data-theme='dark'] .catalogo-input,
+[data-theme='dark'] .catalogo-select,
+[data-theme='dark'] .solicitudes-input,
+[data-theme='dark'] .solicitudes-select,
+[data-theme='dark'] .solicitudes-textarea,
+[data-theme='dark'] .compras-form-input,
+[data-theme='dark'] .facturas-input,
+[data-theme='dark'] .facturas-select,
+[data-theme='dark'] .facturas-discount-input,
+[data-theme='dark'] .obras-input,
+[data-theme='dark'] .obras-select,
+[data-theme='dark'] .despachos-input,
+[data-theme='dark'] .despachos-select,
+[data-theme='dark'] .despachos-textarea,
+[data-theme='dark'] .usuarios-form-input,
+[data-theme='dark'] .usuarios-form-select,
+[data-theme='dark'] .usuarios-addon-input,
+[data-theme='dark'] .login-input {
+    background-color: #0f172a;
+    border-color: var(--color-borde-input);
+    color: var(--color-texto);
+}
+
+[data-theme='dark'] .catalogo-input:disabled,
+[data-theme='dark'] .obras-input:disabled {
+    background-color: #162235;
+    color: #94a3b8;
+}
+
+[data-theme='dark'] .usuarios-addon-tag {
+    background-color: #1e293b;
+    color: #cbd5e1;
+    border-color: var(--color-borde-input);
+}
+
+[data-theme='dark'] .catalogo-search-input,
+[data-theme='dark'] .solicitudes-search-input,
+[data-theme='dark'] .compras-search-input,
+[data-theme='dark'] .finanzas-search-input,
+[data-theme='dark'] .finanzas-period-select,
+[data-theme='dark'] .obras-search-input,
+[data-theme='dark'] .supervisor-search-input,
+[data-theme='dark'] .cardex-filter-input,
+[data-theme='dark'] .cardex-filter-select,
+[data-theme='dark'] .usuarios-search-input {
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--color-texto);
+}
+
+/* Tablas y divisores internos */
+[data-theme='dark'] table thead tr,
+[data-theme='dark'] .finanzas-thead-tr {
+    background-color: #162235;
+    color: var(--color-texto-suave);
+    border-bottom-color: var(--color-borde);
+}
+
+[data-theme='dark'] table th,
+[data-theme='dark'] table td,
+[data-theme='dark'] .catalogo-toolbar,
+[data-theme='dark'] .catalogo-resumen-card-header,
+[data-theme='dark'] .catalogo-modal-actions,
+[data-theme='dark'] .solicitudes-toolbar,
+[data-theme='dark'] .solicitudes-modal-actions,
+[data-theme='dark'] .compras-table-toolbar,
+[data-theme='dark'] .compras-modal-actions,
+[data-theme='dark'] .facturas-header,
+[data-theme='dark'] .finanzas-toolbar,
+[data-theme='dark'] .obras-toolbar,
+[data-theme='dark'] .obras-modal-actions,
+[data-theme='dark'] .despachos-footer-count,
+[data-theme='dark'] .despachos-modal-actions,
+[data-theme='dark'] .cardex-table-header,
+[data-theme='dark'] .usuarios-table-toolbar,
+[data-theme='dark'] .usuarios-table tbody tr,
+[data-theme='dark'] .login-header,
+[data-theme='dark'] .login-footer-text {
+    border-color: var(--color-borde);
+}
+
+[data-theme='dark'] table tbody tr:hover,
+[data-theme='dark'] .finanzas-tr:hover,
+[data-theme='dark'] .usuarios-table tbody tr:hover {
+    background-color: #1a2940;
+}
+
+/* Textos principales sobre fondo oscuro */
+[data-theme='dark'] h1,
+[data-theme='dark'] h2,
+[data-theme='dark'] h3,
+[data-theme='dark'] .catalogo-item-name,
+[data-theme='dark'] .catalogo-qty-bold,
+[data-theme='dark'] .catalogo-kpi-value,
+[data-theme='dark'] .catalogo-resumen-title,
+[data-theme='dark'] .catalogo-barra-nombre,
+[data-theme='dark'] .catalogo-mobile-stats strong,
+[data-theme='dark'] .solicitud-code,
+[data-theme='dark'] .solicitud-name,
+[data-theme='dark'] .solicitud-qty,
+[data-theme='dark'] .compras-td-name,
+[data-theme='dark'] .facturas-total-final,
+[data-theme='dark'] .finanzas-metric-val-main,
+[data-theme='dark'] .finanzas-td-mono,
+[data-theme='dark'] .finanzas-td-bold,
+[data-theme='dark'] .finanzas-td-right,
+[data-theme='dark'] .obras-kpi-value,
+[data-theme='dark'] .obras-client-name,
+[data-theme='dark'] .despachos-title,
+[data-theme='dark'] .despachos-card-title,
+[data-theme='dark'] .despachos-obra-name,
+[data-theme='dark'] .despachos-item-name,
+[data-theme='dark'] .supervisor-title,
+[data-theme='dark'] .supervisor-faena-name,
+[data-theme='dark'] .supervisor-col-title,
+[data-theme='dark'] .supervisor-item-name,
+[data-theme='dark'] .supervisor-dispatch-qty,
+[data-theme='dark'] .cardex-title,
+[data-theme='dark'] .cardex-table-title,
+[data-theme='dark'] .cardex-td-id,
+[data-theme='dark'] .cardex-td-bold,
+[data-theme='dark'] .firma-modal-title,
+[data-theme='dark'] .stock-modal-item-name,
+[data-theme='dark'] .dashboard-title,
+[data-theme='dark'] .dashboard-kpi-value,
+[data-theme='dark'] .dashboard-section-title,
+[data-theme='dark'] .dashboard-flow-name,
+[data-theme='dark'] .dashboard-obra-name {
+    color: var(--color-texto);
+}
+
+[data-theme='dark'] label,
+[data-theme='dark'] .login-label,
+[data-theme='dark'] .usuarios-form-label,
+[data-theme='dark'] .compras-td-rut,
+[data-theme='dark'] .compras-td-text,
+[data-theme='dark'] .facturas-discounts-title,
+[data-theme='dark'] .facturas-total-bruto,
+[data-theme='dark'] .facturas-total-iva,
+[data-theme='dark'] .finanzas-td-normal,
+[data-theme='dark'] .finanzas-metric-val-muted,
+[data-theme='dark'] .solicitudes-descuentos-title,
+[data-theme='dark'] .solicitudes-totales-row,
+[data-theme='dark'] .solicitud-obs,
+[data-theme='dark'] .despachos-section-subtitle,
+[data-theme='dark'] .despachos-sign-info,
+[data-theme='dark'] .cardex-td-date,
+[data-theme='dark'] .cardex-td-destino,
+[data-theme='dark'] .supervisor-faena-client,
+[data-theme='dark'] .dashboard-badge-date {
+    color: var(--color-texto-secundario);
+}
+
+/* Valores monetarios, cantidades y textos de estado con contraste accesible */
+[data-theme='dark'] .catalogo-price,
+[data-theme='dark'] .catalogo-urgente-sugerido,
+[data-theme='dark'] .catalogo-kpi-card.valorizacion .catalogo-kpi-value,
+[data-theme='dark'] .facturas-total-neto,
+[data-theme='dark'] .finanzas-metric-val-total,
+[data-theme='dark'] .finanzas-td-total,
+[data-theme='dark'] .obras-cost,
+[data-theme='dark'] .obras-detail-total strong,
+[data-theme='dark'] .solicitud-price,
+[data-theme='dark'] .solicitudes-totales-row .total,
+[data-theme='dark'] .stock-modal-sugerido,
+[data-theme='dark'] .supervisor-item-qty,
+[data-theme='dark'] .supervisor-signed-tag,
+[data-theme='dark'] .despachos-item-qty.ingreso,
+[data-theme='dark'] .cardex-qty.entrada,
+[data-theme='dark'] .dashboard-link-btn,
+[data-theme='dark'] .dashboard-flow-qty.entrada {
+    color: #4ade80;
+}
+
+[data-theme='dark'] .despachos-item-qty,
+[data-theme='dark'] .dashboard-flow-qty.salida {
+    color: #60a5fa;
+}
+
+[data-theme='dark'] .cardex-qty.salida,
+[data-theme='dark'] .catalogo-barra-alerta,
+[data-theme='dark'] .stock-modal-stock-qty.bajo,
+[data-theme='dark'] .despachos-req-label {
+    color: #fbbf24;
+}
+
+[data-theme='dark'] .cardex-qty.merma,
+[data-theme='dark'] .despachos-item-qty.merma,
+[data-theme='dark'] .supervisor-item-qty.critico,
+[data-theme='dark'] .stock-modal-stock-qty.agotado,
+[data-theme='dark'] .solicitud-obs-rechazo,
+[data-theme='dark'] .dashboard-kpi-value-warning,
+[data-theme='dark'] .dashboard-kpi-subtext-warning,
+[data-theme='dark'] .dashboard-flow-qty.merma {
+    color: #f87171;
+}
+
+/* Tarjetas, KPIs y banners con tintes oscuros */
+[data-theme='dark'] .catalogo-kpi-card.ok,
+[data-theme='dark'] .facturas-total-item.highlight,
+[data-theme='dark'] .facturas-success-alert,
+[data-theme='dark'] .finanzas-metric-card-highlight,
+[data-theme='dark'] .obras-kpi-card.proceso,
+[data-theme='dark'] .obras-detail-total,
+[data-theme='dark'] .cardex-banner-append,
+[data-theme='dark'] .despachos-alert-success,
+[data-theme='dark'] .solicitudes-nota-stock,
+[data-theme='dark'] .alerta-exito {
+    background-color: #0f2e1f;
+    border-color: #166534;
+    color: #bbf7d0;
+}
+
+[data-theme='dark'] .catalogo-kpi-card.ok .catalogo-kpi-label,
+[data-theme='dark'] .catalogo-kpi-card.ok .catalogo-kpi-value,
+[data-theme='dark'] .cardex-banner-title,
+[data-theme='dark'] .cardex-banner-desc,
+[data-theme='dark'] .finanzas-metric-label-green,
+[data-theme='dark'] .finanzas-metric-subtext-green,
+[data-theme='dark'] .obras-kpi-card.proceso .obras-kpi-label,
+[data-theme='dark'] .obras-kpi-card.proceso .obras-kpi-value {
+    color: #86efac;
+}
+
+[data-theme='dark'] .catalogo-kpi-card.alerta,
+[data-theme='dark'] .catalogo-urgente-item.bajo,
+[data-theme='dark'] .catalogo-lock-notice,
+[data-theme='dark'] .solicitudes-banner.pendiente,
+[data-theme='dark'] .stock-modal-header,
+[data-theme='dark'] .stock-modal-item.bajo,
+[data-theme='dark'] .dashboard-kpi-card-warning {
+    background-color: #33260f;
+    border-color: #92400e;
+    color: #fde68a;
+}
+
+[data-theme='dark'] .catalogo-kpi-card.alerta .catalogo-kpi-label,
+[data-theme='dark'] .catalogo-kpi-card.alerta .catalogo-kpi-value,
+[data-theme='dark'] .stock-modal-title,
+[data-theme='dark'] .stock-modal-subtitle,
+[data-theme='dark'] .stock-modal-btn-close,
+[data-theme='dark'] .dashboard-kpi-label-warning {
+    color: #fde68a;
+}
+
+[data-theme='dark'] .catalogo-kpi-card.peligro,
+[data-theme='dark'] .catalogo-urgente-item.agotado,
+[data-theme='dark'] .stock-modal-header.critico,
+[data-theme='dark'] .stock-modal-item.agotado,
+[data-theme='dark'] .alerta-error {
+    background-color: #3b151a;
+    border-color: #991b1b;
+    color: #fecaca;
+}
+
+[data-theme='dark'] .catalogo-kpi-card.peligro .catalogo-kpi-label,
+[data-theme='dark'] .catalogo-kpi-card.peligro .catalogo-kpi-value,
+[data-theme='dark'] .stock-modal-header.critico .stock-modal-title,
+[data-theme='dark'] .stock-modal-header.critico .stock-modal-subtitle {
+    color: #fca5a5;
+}
+
+[data-theme='dark'] .solicitudes-banner.en-camino,
+[data-theme='dark'] .solicitudes-aviso-duplicado {
+    background-color: #12263f;
+    border-color: #1d4ed8;
+    color: #bfdbfe;
+}
+
+[data-theme='dark'] .cardex-banner-icon,
+[data-theme='dark'] .facturas-icon-badge,
+[data-theme='dark'] .supervisor-faena-icon,
+[data-theme='dark'] .dashboard-kpi-icon-green {
+    background-color: #14532d;
+    color: #86efac;
+}
+
+[data-theme='dark'] .stock-modal-icon-badge,
+[data-theme='dark'] .dashboard-kpi-icon-orange {
+    background-color: #451a03;
+    color: #fbbf24;
+}
+
+[data-theme='dark'] .stock-modal-icon-badge.critico {
+    background-color: #7f1d1d;
+    color: #fca5a5;
+}
+
+[data-theme='dark'] .dashboard-kpi-icon-blue {
+    background-color: #172554;
+    color: #60a5fa;
+}
+
+[data-theme='dark'] .catalogo-barra-track {
+    background-color: #1e293b;
+}
+
+[data-theme='dark'] .cardex-badge-readonly,
+[data-theme='dark'] .despachos-btn-comprobante,
+[data-theme='dark'] .solicitudes-banner-btn {
+    background-color: #111c2d;
+    border-color: #22c55e;
+    color: #86efac;
+}
+
+/* Badges y etiquetas de estado globales (legibles en fondo oscuro) */
+[data-theme='dark'] .badge-ok,
+[data-theme='dark'] .catalogo-usage-badge.en-uso,
+[data-theme='dark'] .obras-usage-badge.en-uso,
+[data-theme='dark'] .obras-status-badge.proceso,
+[data-theme='dark'] .solicitud-badge.completada,
+[data-theme='dark'] .finanzas-status-badge.paid,
+[data-theme='dark'] .cardex-mov-badge.entrada,
+[data-theme='dark'] .supervisor-cost-chip,
+[data-theme='dark'] .usuarios-role-badge.admin,
+[data-theme='dark'] .dashboard-badge-ongoing {
+    background-color: #14532d;
+    color: #86efac;
+}
+
+[data-theme='dark'] .badge-critico,
+[data-theme='dark'] .obras-status-badge.suspendida,
+[data-theme='dark'] .solicitud-badge.pendiente,
+[data-theme='dark'] .cardex-mov-badge.salida,
+[data-theme='dark'] .despachos-obra-code.merma,
+[data-theme='dark'] .usuarios-role-badge.finanzas {
+    background-color: #451a03;
+    color: #fde68a;
+}
+
+[data-theme='dark'] .badge-agotado,
+[data-theme='dark'] .obras-status-badge.cancelada,
+[data-theme='dark'] .solicitud-badge.rechazada,
+[data-theme='dark'] .cardex-mov-badge.merma {
+    background-color: #450a0a;
+    color: #fca5a5;
+}
+
+[data-theme='dark'] .obras-service-tag,
+[data-theme='dark'] .obras-status-badge.finalizada,
+[data-theme='dark'] .solicitud-badge.en-camino,
+[data-theme='dark'] .cardex-mov-badge.devolucion,
+[data-theme='dark'] .despachos-obra-code.devolucion,
+[data-theme='dark'] .supervisor-meta-chip,
+[data-theme='dark'] .usuarios-role-badge.soporte,
+[data-theme='dark'] .usuarios-role-badge.bodega {
+    background-color: #172554;
+    color: #93c5fd;
+}
+
+[data-theme='dark'] .supervisor-badge-role,
+[data-theme='dark'] .usuarios-role-badge.supervisor {
+    background-color: #2e1065;
+    border-color: #6b21a8;
+    color: #d8b4fe;
+}
+
+/* Pestañas inactivas, chips, códigos y botones secundarios/cancelar */
+[data-theme='dark'] .catalogo-tab-item:not(.active),
+[data-theme='dark'] .compras-tab-item:not(.active),
+[data-theme='dark'] .obras-tab-item:not(.active),
+[data-theme='dark'] .despachos-tab-item:not(.active),
+[data-theme='dark'] .cardex-tab-item:not(.active) {
+    color: var(--color-texto-secundario);
+}
+
+[data-theme='dark'] .catalogo-tab-item:not(.active):hover,
+[data-theme='dark'] .compras-tab-item:not(.active):hover,
+[data-theme='dark'] .obras-tab-item:not(.active):hover,
+[data-theme='dark'] .despachos-tab-item:not(.active):hover,
+[data-theme='dark'] .cardex-tab-item:not(.active):hover {
+    background-color: #1e293b;
+    color: #ffffff;
+}
+
+[data-theme='dark'] .catalogo-filter-btn:not(.active),
+[data-theme='dark'] .solicitudes-filter-btn:not(.active),
+[data-theme='dark'] .obras-filter-btn:not(.active),
+[data-theme='dark'] .despachos-toggle-btn:not(.active-ingreso):not(.active-salida),
+[data-theme='dark'] .catalogo-code-badge,
+[data-theme='dark'] .catalogo-category-tag,
+[data-theme='dark'] .catalogo-usage-badge.libre,
+[data-theme='dark'] .obras-code-badge,
+[data-theme='dark'] .obras-usage-badge.libre,
+[data-theme='dark'] .despachos-obra-code,
+[data-theme='dark'] .compras-location-badge,
+[data-theme='dark'] .cardex-count-badge,
+[data-theme='dark'] .cardex-doc-chip,
+[data-theme='dark'] .cardex-mov-badge.admin,
+[data-theme='dark'] .usuarios-role-badge,
+[data-theme='dark'] .usuarios-protected-badge,
+[data-theme='dark'] .btn-secundario,
+[data-theme='dark'] .btn-tabla,
+[data-theme='dark'] .firma-btn-clear {
+    background-color: #1e293b;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+[data-theme='dark'] .despachos-toggle-btn.active-ingreso {
+    background-color: #0f2e1f;
+    border-color: #22c55e;
+    color: #86efac;
+}
+
+[data-theme='dark'] .despachos-toggle-btn.active-salida {
+    background-color: #33260f;
+    border-color: #f59e0b;
+    color: #fde68a;
+}
+
+[data-theme='dark'] .catalogo-btn-cancel,
+[data-theme='dark'] .solicitudes-btn-cancel,
+[data-theme='dark'] .compras-btn-cancel,
+[data-theme='dark'] .obras-btn-cancel,
+[data-theme='dark'] .despachos-btn-cancel,
+[data-theme='dark'] .usuarios-btn-cancel,
+[data-theme='dark'] .stock-modal-btn-secondary,
+[data-theme='dark'] .firma-btn-cancel {
+    background-color: #162235;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+
+/* Botones de acciones suaves y exportación */
+[data-theme='dark'] .compras-btn-export,
+[data-theme='dark'] .catalogo-btn-export,
+[data-theme='dark'] .finanzas-btn-export,
+[data-theme='dark'] .obras-btn-export,
+[data-theme='dark'] .cardex-btn-export,
+[data-theme='dark'] .obras-btn-view,
+[data-theme='dark'] .supervisor-btn-sign,
+[data-theme='dark'] .solicitud-btn.aprobar,
+[data-theme='dark'] .despachos-btn-open-sign {
+    background-color: #0f2e1f;
+    border-color: #166534;
+    color: #86efac;
+}
+
+[data-theme='dark'] .compras-btn-export:hover:not(:disabled),
+[data-theme='dark'] .catalogo-btn-export:hover:not(:disabled),
+[data-theme='dark'] .finanzas-btn-export:hover:not(:disabled),
+[data-theme='dark'] .obras-btn-export:hover:not(:disabled),
+[data-theme='dark'] .cardex-btn-export:hover:not(:disabled),
+[data-theme='dark'] .obras-btn-view:hover,
+[data-theme='dark'] .supervisor-btn-sign:hover,
+[data-theme='dark'] .solicitud-btn.aprobar:hover {
+    background-color: #14532d;
+}
+
+[data-theme='dark'] .catalogo-btn-pedir {
+    background-color: #451a03;
+    border-color: #92400e;
+    color: #fde68a;
+}
+
+[data-theme='dark'] .catalogo-btn-pedir:hover {
+    background-color: #78350f;
+}
+
+[data-theme='dark'] .catalogo-btn-edit,
+[data-theme='dark'] .compras-btn-edit,
+[data-theme='dark'] .obras-btn-edit,
+[data-theme='dark'] .usuarios-btn-edit,
+[data-theme='dark'] .catalogo-resumen-link,
+[data-theme='dark'] .stock-modal-btn-factura {
+    background-color: #122c44;
+    border-color: #1d4ed8;
+    color: #93c5fd;
+}
+
+[data-theme='dark'] .catalogo-btn-delete,
+[data-theme='dark'] .compras-btn-delete,
+[data-theme='dark'] .obras-btn-delete,
+[data-theme='dark'] .usuarios-btn-delete,
+[data-theme='dark'] .solicitud-btn.rechazar {
+    background-color: #3b151a;
+    border-color: #991b1b;
+    color: #fca5a5;
+}
+
+/* Excepciones intencionales: logo en login y lienzo de firma siempre nítidos */
+[data-theme='dark'] .login-logo-box {
+    background-color: #ffffff;
+    border-color: #334155;
+}
+
+[data-theme='dark'] .firma-canvas-wrapper {
+    background-color: #f8fafc;
+    border-color: #64748b;
+}
+
+[data-theme='dark'] .despachos-comprobante-firma img {
+    background-color: #ffffff;
+    border-radius: 6px;
+    padding: 4px;
+}

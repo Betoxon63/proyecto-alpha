@@ -5,13 +5,11 @@ import { obtenerClientes } from "../services_api/inventarioService";
 import { obtenerUsuarioActual } from "../services_api/authService";
 import { formatearRutVisual } from './GestionUsuariosView';
 import TiposServicioView from "../components/TiposServicioView";
+import { exportarExcel } from "../utils/exportarExcel";
 import '../styles/ObrasView.css';
 
 // Devuelve la fecha actual.
 const obtenerFechaHoyISO = () => new Date().toLocaleDateString('en-CA');
-
-// Protege cada celda antes de guardarla en una planilla CSV.
-const limpiarCeldaCSV = (valor) => `"${String(valor ?? '').replace(/"/g, '""')}"`;
 
 const estadoInicialObra = {
     fecha_inicio: obtenerFechaHoyISO(),
@@ -261,41 +259,53 @@ export const ObrasPage = ({ usuario: usuarioProp = null }) => {
         return true;
     });
 
-    // Descarga en una planilla CSV las obras.
-    const exportarObrasCSV = () => {
-        const encabezados = [
-            'Código', 'Fecha Inicio', 'Cliente', 'RUT Cliente', 'Tipo de Servicio',
-            'Supervisor', 'Técnico Responsable', 'Despachos', 'Estado',
+    // Descarga en formato Excel las obras actualmente filtradas.
+    const exportarObrasExcel = async () => {
+        const columnas = [
+            { header: 'Código', key: 'codigo', width: 12, alineacion: 'center' },
+            { header: 'Fecha Inicio', key: 'fecha', width: 14, alineacion: 'center' },
+            { header: 'Cliente Mandante', key: 'cliente', width: 30 },
+            { header: 'RUT Cliente', key: 'rut', width: 15, alineacion: 'center' },
+            { header: 'Tipo de Servicio', key: 'servicio', width: 22 },
+            { header: 'Supervisor', key: 'supervisor', width: 22 },
+            { header: 'Técnico Responsable', key: 'tecnico', width: 22 },
+            { header: 'Despachos', key: 'despachos', width: 12, formato: 'numero', alineacion: 'center' },
+            { header: 'Estado', key: 'estado', width: 14, alineacion: 'center' },
         ];
-        if (puedeVerCostos) encabezados.push('Costo Materiales ($)');
+        if (puedeVerCostos) {
+            columnas.push({ header: 'Costo Materiales', key: 'costo', width: 18, formato: 'moneda' });
+        }
 
-        const filas = obrasFiltradas.map((o) => {
-            const estadoTexto =  o.estado === 'Activa' ? 'En proceso' : o.estado;
-            const fila = [
-                limpiarCeldaCSV(o.codigo || `OB-${o.id_obra}`),
-                limpiarCeldaCSV(o.fecha_inicio),
-                limpiarCeldaCSV(o.cliente_razon_social || o.cliente_nombre || ''),
-                limpiarCeldaCSV(formatearRutVisual(o.cliente_rut || '')),
-                limpiarCeldaCSV(o.tipo_servicio_nombre || ''),
-                limpiarCeldaCSV(o.supervisor_nombre || 'Sin asignar'),
-                limpiarCeldaCSV(o.tecnico_asociado || ''),
-                contarDespachosObra(o),
-                limpiarCeldaCSV(estadoTexto),
-            ];
-            if (puedeVerCostos) fila.push(Number(o.costo_total_materiales || 0));
-            return fila;
+        const totalDespachos = obrasFiltradas.reduce((acc, o) => acc + contarDespachosObra(o), 0);
+        const totalCosto = obrasFiltradas.reduce(
+            (acc, o) => acc + Number(o.costo_total_materiales || 0),
+            0
+        );
+
+        await exportarExcel({
+            nombreArchivo: `obras_fyag_${obtenerFechaHoyISO()}.xlsx`,
+            nombreHoja: 'Obras y Proyectos',
+            titulo: 'Listado de Obras y Servicios en Terreno',
+            subtitulo: filtroEstado !== 'Todas' ? `Estado: ${filtroEstado}` : '',
+            columnas,
+            filas: obrasFiltradas.map((o) => ({
+                codigo: o.codigo || `OB-${o.id_obra}`,
+                fecha: o.fecha_inicio,
+                cliente: o.cliente_razon_social || o.cliente_nombre || '',
+                rut: formatearRutVisual(o.cliente_rut || ''),
+                servicio: o.tipo_servicio_nombre || '',
+                supervisor: o.supervisor_nombre || 'Sin asignar',
+                tecnico: o.tecnico_asociado || '',
+                despachos: contarDespachosObra(o),
+                estado: o.estado === 'Activa' ? 'En proceso' : o.estado,
+                ...(puedeVerCostos ? { costo: Number(o.costo_total_materiales || 0) } : {}),
+            })),
+            filaTotales: {
+                tecnico: 'TOTALES',
+                despachos: totalDespachos,
+                ...(puedeVerCostos ? { costo: totalCosto } : {}),
+            },
         });
-
-        const contenido = '\uFEFF' + [encabezados.join(','), ...filas.map((f) => f.join(','))].join('\n');
-        const archivo = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(archivo);
-        const enlace = document.createElement('a');
-        enlace.href = url;
-        enlace.download = `obras_fyag_${obtenerFechaHoyISO()}.csv`;
-        document.body.appendChild(enlace);
-        enlace.click();
-        document.body.removeChild(enlace);
-        URL.revokeObjectURL(url);
     };
 
     const totalEnProceso = obras.filter((o) => o.estado === 'En proceso' || o.estado === 'Activa').length;
@@ -400,9 +410,9 @@ export const ObrasPage = ({ usuario: usuarioProp = null }) => {
                                         ))}
                                     </div>
 
-                                    <button type="button" onClick={exportarObrasCSV} disabled={obrasFiltradas.length === 0} className="obras-btn-export">
+                                    <button type="button" onClick={exportarObrasExcel} disabled={obrasFiltradas.length === 0} className="obras-btn-export">
                                         <Download size={14} />
-                                        <span>Exportar CSV</span>
+                                        <span>Exportar Excel</span>
                                     </button>
                                 </div>
                             </div>

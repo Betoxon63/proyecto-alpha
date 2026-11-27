@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { ShieldCheck, Lock, Building2, FileSpreadsheet, ArrowDownLeft, ArrowUpRight, AlertTriangle, UserCheck, Search, Download, Calendar, RotateCcw, ClipboardList, FileText, Boxes, Filter } from "lucide-react";
 import { obtenerCardex, obtenerObras } from "../services_api/obrasService";
 import { obtenerUsuarioActual } from "../services_api/authService";
+import { exportarExcel } from "../utils/exportarExcel";
 import '../styles/TablaCardex.css';
 
 // Nombres de los cargos.
@@ -12,9 +13,6 @@ const CARGOS = {
     encargado_finanza: 'Encargado de Finanzas',
     supervisor_obra: 'Supervisor de Obra',
 }
-
-// Protege cada celda antes de guardarla en una planilla CSV.
-const limpiarCeldaCSV = (valor) => `"${String(valor ?? '').replace(/"/g, '""')}"`;
 
 // Convierte la fecha.
 const convertirFecha = (iso) => {
@@ -157,42 +155,42 @@ export default function TablaCardex({ usuario = null, cardexInicial = null, obra
         return true;
     });
 
-    // Descarga en una plantilla compatible con Excel los registros actualmente visibles.
-    const exportarPlantilla = () => {
-        const encabezados = [
-            'Codigo Registro',
-            'Fecha y Hora',
-            'Realizado Por',
-            'Grupo',
-            'Elemento / Seccion',
-            'Cantidad',
-            'Tipo de Accion',
-            'Área o Destino',
-            'Detalle del Registro',
-        ];
+    // Descarga en formato Excel los registros actualmente visibles en pantalla.
+    const exportarPlantilla = async () => {
+        const subtitulo = [
+            grupoFiltro !== 'Todos' ? `Vista: ${grupoFiltro}` : '',
+            tipoFiltro !== 'Todos' ? `Tipo: ${tipoFiltro}` : '',
+            fechaFiltro ? `Fecha: ${convertirFecha(fechaFiltro)}` : '',
+        ].filter(Boolean).join(' · ');
 
-        const filas = filtrados.map((m) => [
-            limpiarCeldaCSV(m.id_movimiento || `REG-${m.id_movimiento_articulo}`),
-            limpiarCeldaCSV(m.fecha_hora || m.fecha || ''),
-            limpiarCeldaCSV(m.usuario_responsable || ''),
-            limpiarCeldaCSV(esRegistroInventario(m) ? 'Inventario' : 'Administración'),
-            limpiarCeldaCSV(m.articulo_nombre || ''),
-            esRegistroInventario(m) ? m.cantidad : 0,
-            limpiarCeldaCSV(m.tipo_movimiento || ''),
-            limpiarCeldaCSV(m.obra_destino || 'Bodega Central'),
-            limpiarCeldaCSV(m.motivo || m.documento_respaldo || ''),
-        ]);
-
-        const contenido = '\uFEFF' + [encabezados.join(','), ...filas.map((e) => e.join(','))].join('\n');
-        const archivo = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(archivo);
-        const enlace = document.createElement('a');
-        enlace.href = url;
-        enlace.download = `historial_fyag_${new Date().toLocaleDateString('en-CA')}.csv`;
-        document.body.appendChild(enlace);
-        enlace.click();
-        document.body.removeChild(enlace);
-        URL.revokeObjectURL(url);
+        await exportarExcel({
+            nombreArchivo: `historial_fyag_${new Date().toLocaleDateString('en-CA')}.xlsx`,
+            nombreHoja: 'Historial General',
+            titulo: 'Historial General de Movimientos',
+            subtitulo,
+            columnas: [
+                { header: 'N° Registro', key: 'codigo', width: 14, alineacion: 'center' },
+                { header: 'Fecha y Hora', key: 'fecha', width: 18, alineacion: 'center' },
+                { header: 'Realizado Por', key: 'usuario', width: 22 },
+                { header: 'Grupo', key: 'grupo', width: 16, alineacion: 'center' },
+                { header: 'Material o Sección', key: 'elemento', width: 30 },
+                { header: 'Cantidad', key: 'cantidad', width: 12, formato: 'numero', alineacion: 'right' },
+                { header: 'Tipo de Acción', key: 'tipo', width: 24 },
+                { header: 'Área / Destino', key: 'destino', width: 26 },
+                { header: 'Detalle del Registro', key: 'detalle', width: 48 },
+            ],
+            filas: filtrados.map((m) => ({
+                codigo: m.id_movimiento || `REG-${m.id_movimiento_articulo}`,
+                fecha: m.fecha_hora || m.fecha || '',
+                usuario: m.usuario_responsable || '',
+                grupo: esRegistroInventario(m) ? 'Inventario' : 'Administración',
+                elemento: m.articulo_nombre || '',
+                cantidad: esRegistroInventario(m) ? Number(m.cantidad || 0) : '—',
+                tipo: m.tipo_movimiento || '',
+                destino: m.obra_destino || 'Bodega Central',
+                detalle: m.motivo || m.documento_respaldo || '',
+            })),
+        });
     };
 
     return (
@@ -207,7 +205,7 @@ export default function TablaCardex({ usuario = null, cardexInicial = null, obra
 
                 <button type="button" onClick={exportarPlantilla} disabled={filtrados.length === 0} className="cardex-btn-export">
                     <Download size={15} />
-                    <span>Descargar Planilla</span>
+                    <span>Exportar Excel</span>
                 </button>
             </div>
 

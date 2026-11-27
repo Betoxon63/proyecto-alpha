@@ -310,6 +310,72 @@
     display: none;
 }
 
+/* Botón de cambio de tema (Modo Claro / Modo Oscuro) */
+.sidebar-theme-btn {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 10px;
+    color: #ffffff;
+    padding: 9px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    font-size: 0.84rem;
+    font-weight: 700;
+    white-space: nowrap;
+    transition: background-color 0.15s ease;
+}
+
+.sidebar-theme-btn:hover {
+    background: rgba(255, 255, 255, 0.24);
+}
+
+.sidebar-theme-sun {
+    color: #fde047;
+}
+
+.sidebar-fyag.colapsada .sidebar-theme-label {
+    display: none;
+}
+
+.sidebar-fyag.colapsada .sidebar-theme-btn {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.sidebar-mobile-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sidebar-mobile-theme {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    color: #ffffff;
+    padding: 6px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+@media (max-width: 900px) {
+    .sidebar-fyag.colapsada .sidebar-theme-label {
+        display: inline;
+    }
+
+    .sidebar-fyag.colapsada .sidebar-theme-btn {
+        justify-content: flex-start;
+        padding-left: 13px;
+        padding-right: 13px;
+    }
+}
+
 @media (max-width: 900px) {
     .sidebar-mobile-topbar {
         position: fixed;

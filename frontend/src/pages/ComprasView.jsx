@@ -4,6 +4,7 @@ import { obtenerClientes, crearCliente, actualizarCliente, eliminarCliente, obte
 import { formatearRutVisual, limpiarRutParaGuardar } from './GestionUsuariosView'
 import FacturasComprasView from "../components/FacturasComprasView";
 import FinanzasView from './FinanzasView'
+import { exportarExcel } from "../utils/exportarExcel";
 import '../styles/ComprasView.css'
 
 const clienteInicial = {
@@ -26,9 +27,6 @@ const proveedorInicial = {
     comuna: '',
     ciudad: '',
 };
-
-// Protege cada celda antes de guardarla en una plantilla CSV.
-const limpiarCeldaCSV = (valor) => `"${String(valor ?? '').replace(/"/g, '""')}"`;
 
 // Pantalla de administración comercial para Clientes, Proveedores, Facturas y Gastos.
 const ComprasView = ({ usuario }) => {
@@ -262,20 +260,6 @@ const ComprasView = ({ usuario }) => {
         return res.data;
     };
 
-    // Descarga un archivo CSV.
-    const descargarPlanillaCSV = (nombreArchivo, encabezados, filas) => {
-        const contenido = '\uFEFF' + [encabezados.join(','), ...filas.map((f) => f.join(','))].join('\n');
-        const archivo = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(archivo);
-        const enlace = document.createElement('a');
-        enlace.href = url;
-        enlace.download = nombreArchivo;
-        document.body.appendChild(enlace);
-        enlace.click();
-        document.body.removeChild(enlace);
-        URL.revokeObjectURL(url);
-    };
-
     const clientesFiltrados = clientes.filter((c) => {
         const q = busquedaCliente.toLowerCase();
         const rutPuntos = formatearRutVisual(c.rut).toLowerCase();
@@ -302,38 +286,60 @@ const ComprasView = ({ usuario }) => {
         );
     });
 
-    // Exporta a CSV la nómina de clientes.
-    const exportarClientesCSV = () => {
-        const encabezados = [
-            'RUT Empresa', 'Razón Social', 'Giro Comercial', 'Dirección',
-            'Comuna', 'Ciudad', 'Región', 'Representante Legal', 'RUT Representante',
-        ];
-        const filas = clientesFiltrados.map((c) => [
-            limpiarCeldaCSV(formatearRutVisual(c.rut)),
-            limpiarCeldaCSV(c.razon_social),
-            limpiarCeldaCSV(c.giro_comercial),
-            limpiarCeldaCSV(c.direccion),
-            limpiarCeldaCSV(c.comuna),
-            limpiarCeldaCSV(c.ciudad),
-            limpiarCeldaCSV(c.region),
-            limpiarCeldaCSV(c.nombre_representante),
-            limpiarCeldaCSV(formatearRutVisual(c.rut_representante)),
-        ]);
-        descargarPlanillaCSV('nomina_clientes_fyag.csv', encabezados, filas);
+    // Exporta a Excel la nómina de clientes.
+    const exportarClientesExcel = async () => {
+        await exportarExcel({
+            nombreArchivo: `nomina_clientes_fyag_${new Date().toLocaleDateString('en-CA')}.xlsx`,
+            nombreHoja: 'Clientes',
+            titulo: 'Nómina de Clientes Mandantes',
+            columnas: [
+                { header: 'RUT Empresa', key: 'rut', width: 16, alineacion: 'center' },
+                { header: 'Razón Social', key: 'razon_social', width: 32 },
+                { header: 'Giro Comercial', key: 'giro_comercial', width: 30 },
+                { header: 'Dirección', key: 'direccion', width: 28 },
+                { header: 'Comuna', key: 'comuna', width: 16 },
+                { header: 'Ciudad', key: 'ciudad', width: 16 },
+                { header: 'Región', key: 'region', width: 16 },
+                { header: 'Representante Legal', key: 'representante', width: 24 },
+                { header: 'RUT Representante', key: 'rut_rep', width: 18, alineacion: 'center' },
+            ],
+            filas: clientesFiltrados.map((c) => ({
+                rut: formatearRutVisual(c.rut),
+                razon_social: c.razon_social,
+                giro_comercial: c.giro_comercial,
+                direccion: c.direccion,
+                comuna: c.comuna,
+                ciudad: c.ciudad,
+                region: c.region,
+                representante: c.nombre_representante,
+                rut_rep: formatearRutVisual(c.rut_representante),
+            })),
+        });
     };
 
-    // Exporta a CSV la nómina de proveedores.
-    const exportarProveedoresCSV = () => {
-        const encabezados = ['RUT', 'Razón Social', 'Dirección', 'Comuna', 'Ciudad', 'Región'];
-        const filas = proveedoresFiltrados.map((p) => [
-            limpiarCeldaCSV(formatearRutVisual(p.rut)),
-            limpiarCeldaCSV(p.razon_social),
-            limpiarCeldaCSV(p.direccion),
-            limpiarCeldaCSV(p.comuna),
-            limpiarCeldaCSV(p.ciudad),
-            limpiarCeldaCSV(p.region),
-        ]);
-        descargarPlanillaCSV('nomina_proveedores_fyag.csv', encabezados, filas);
+    // Exporta a Excel la nómina de proveedores.
+    const exportarProveedoresExcel = async () => {
+        await exportarExcel({
+            nombreArchivo: `nomina_proveedores_fyag_${new Date().toLocaleDateString('en-CA')}.xlsx`,
+            nombreHoja: 'Proveedores',
+            titulo: 'Nómina de Proveedores',
+            columnas: [
+                { header: 'RUT Proveedor', key: 'rut', width: 16, alineacion: 'center' },
+                { header: 'Razón Social', key: 'razon_social', width: 34 },
+                { header: 'Dirección Comercial', key: 'direccion', width: 30 },
+                { header: 'Comuna', key: 'comuna', width: 18 },
+                { header: 'Ciudad', key: 'ciudad', width: 18 },
+                { header: 'Región', key: 'region', width: 18 },
+            ],
+            filas: proveedoresFiltrados.map((p) => ({
+                rut: formatearRutVisual(p.rut),
+                razon_social: p.razon_social,
+                direccion: p.direccion,
+                comuna: p.comuna,
+                ciudad: p.ciudad,
+                region: p.region,
+            })),
+        });
     };
 
     const modalActivo = modalClienteAbierto || modalProveedorAbierto;
@@ -412,9 +418,9 @@ const ComprasView = ({ usuario }) => {
                                 <span className="compras-count-label">
                                     {clientesFiltrados.length} clientes registrados
                                 </span>
-                                <button type="button" onClick={exportarClientesCSV} disabled={clientesFiltrados.length === 0} className="compras-btn-export">
+                                <button type="button" onClick={exportarClientesExcel} disabled={clientesFiltrados.length === 0} className="compras-btn-export">
                                     <Download size={14} />
-                                    <span>Exportar CSV</span>
+                                    <span>Exportar Excel</span>
                                 </button>
                             </div>
                         </div>
@@ -506,9 +512,9 @@ const ComprasView = ({ usuario }) => {
                                 <span className="compras-count-label">
                                     {proveedoresFiltrados.length} proveedores registrados
                                 </span>
-                                <button type="button" onClick={exportarProveedoresCSV} disabled={proveedoresFiltrados.length === 0} className="compras-btn-export">
+                                <button type="button" onClick={exportarProveedoresExcel} disabled={proveedoresFiltrados.length === 0} className="compras-btn-export">
                                     <Download size={14} />
-                                    <span>Exportar CSV</span>
+                                    <span>Exportar Excel</span>
                                 </button>
                             </div>
                         </div>

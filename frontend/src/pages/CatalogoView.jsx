@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Boxes, Search, Plus, Edit2, Trash2, Tag, Ruler, BarChart3, Lock, ShoppingCart } from 'lucide-react';
+import { Boxes, Search, Plus, Edit2, Trash2, Tag, Ruler, BarChart3, Lock, ShoppingCart, Download } from 'lucide-react';
 import { obtenerArticulos, crearArticulo, actualizarArticulo, eliminarArticulo, obtenerCategorias, obtenerUnidades, } from '../services_api/inventarioService';
 import AlertaStock from "../components/AlertaStock";
 import ResumenBodegaView from "../components/ResumenBodegaView";
 import CategoriasView from "../components/CategoriasView";
 import UnidadesView from "../components/UnidadesView";
+import { exportarExcel } from "../utils/exportarExcel";
 import '../styles/CatalogoView.css'
 
 // Valores iniciales vacios.
@@ -248,6 +249,67 @@ const CatalogoView = ({ usuario }) => {
         return true;
     });
 
+    // Descarga el catálogo en formato Excel.
+    const exportarCatalogoExcel = async () => {
+        const columnas = [
+            { header: 'Código Barras', key: 'codigo', width: 18, alineacion: 'center' },
+            { header: 'Material / Repuesto', key: 'nombre', width: 34 },
+            { header: 'Categoría', key: 'categoria', width: 20 },
+            { header: 'Unidad', key: 'unidad', width: 14, alineacion: 'center' },
+            { header: 'Ubicación', key: 'ubicacion', width: 24 },
+            { header: 'Disponible', key: 'disponible', width: 13, formato: 'numero' },
+            { header: 'Mínimo', key: 'minimo', width: 11, formato: 'numero' },
+            { header: 'Reservado', key: 'comprometido', width: 12, formato: 'numero' },
+            { header: 'Estado Stock', key: 'estado', width: 15, alineacion: 'center' },
+        ];
+        if (puedeVerPrecios) {
+            columnas.push(
+                { header: 'Precio Unitario', key: 'precio', width: 16, formato: 'moneda' },
+                { header: 'Valor Inventario', key: 'valor', width: 18, formato: 'moneda' }
+            );
+        }
+
+        const totalDisponible = articulosFiltrados.reduce(
+            (acc, a) => acc + Number(a.stock_disponible || 0),
+            0
+        );
+        const totalValor = articulosFiltrados.reduce(
+            (acc, a) => acc + Number(a.stock_disponible || 0) * Number(a.precio || 0),
+            0
+        );
+
+        await exportarExcel({
+            nombreArchivo: `catalogo_bodega_fyag_${new Date().toLocaleDateString('en-CA')}.xlsx`,
+            nombreHoja: 'Catálogo Bodega',
+            titulo: 'Catálogo de Materiales y Existencias en Bodega',
+            subtitulo: filtroStock !== 'Todos' ? `Filtro: ${filtroStock}` : '',
+            columnas,
+            filas: articulosFiltrados.map((a) => {
+                const disp = Number(a.stock_disponible || 0);
+                const min = Number(a.stock_minimo || 0);
+                const precio = Number(a.precio || 0);
+                const estadoTxt = disp <= 0 ? 'Agotado' : disp <= min ? 'Stock Bajo' : 'Stock Normal';
+                return {
+                    codigo: String(a.codigo_barra || ''),
+                    nombre: a.nombre || '',
+                    categoria: a.categoria_nombre || '',
+                    unidad: a.unidad_nombre || '',
+                    ubicacion: a.ubicacion || '',
+                    disponible: disp,
+                    minimo: min,
+                    comprometido: Number(a.stock_comprometido || 0),
+                    estado: estadoTxt,
+                    ...(puedeVerPrecios ? { precio, valor: disp * precio } : {}),
+                };
+            }),
+            filaTotales: {
+                ubicacion: 'TOTALES',
+                disponible: totalDisponible,
+                ...(puedeVerPrecios ? { valor: totalValor } : {}),
+            },
+        });
+    };
+
     const totalColumnasTabla = 7 + (puedeVerPrecios ? 1 : 0) + (puedeEscribir ? 1 : 0);
 
     return (
@@ -263,6 +325,13 @@ const CatalogoView = ({ usuario }) => {
                     </div>
 
                     <div className="catalogo-header-actions">
+                        {pestana === 'materiales' && (
+                            <button type="button" onClick={exportarCatalogoExcel} disabled={articulosFiltrados.length === 0} className="catalogo-btn-export">
+                                <Download size={15} />
+                                <span>Exportar Excel</span>
+                            </button>
+                        )}
+
                         {puedeEscribir && (pestana === 'materiales' || pestana === 'resumen') && (
                             <button type="button" onClick={abrirModalNuevoMaterial} className="catalogo-btn-add">
                                 <Plus size={16} />

@@ -753,6 +753,23 @@
     background-color: #fde68a;
 }
 
+.catalogo-btn-export {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background-color: #f0fdf4;
+    color: var(--color-primario);
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+    padding: 9px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.catalogo-btn-export:hover:not(:disabled) { background-color: #dcfce7; }
+.catalogo-btn-export:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .catalogo-urgente-acciones {
     display: flex;
     align-items: center;

@@ -311,6 +311,15 @@
     border: 1px solid #cbd5e1;
 }
 
+.obras-modal-header {
+    background-color: var(--color-primario);
+    padding: 16px 20px;
+    color: #ffffff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
 .obras-modal-title {
     font-size: 16px;
     font-weight: 800;
@@ -407,12 +416,6 @@
 
 .obras-btn-save:hover {
     background-color: var(--color-primario-hover);
-}
-
-.obras-header-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
 }
 
 .obras-tabs-bar {

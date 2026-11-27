@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Download, Calendar } from 'lucide-react';
 import { obtenerFacturas } from '../services_api/inventarioService';
+import { exportarExcel } from '../utils/exportarExcel';
 import '../styles/FinanzasView.css';
 
 // Meses para filtrar.
@@ -16,9 +17,6 @@ const formatearMes = (claveMes) => {
     if (!anio || indice < 0 || indice > 11) return claveMes;
     return `${NOMBRES_MESES[indice]} ${anio}`;
 };
-
-// Protege cada celda antes de guardarla en una plantilla CSV.
-const limpiarCeldaCSV = (valor) => `"${String(valor ?? '').replace(/"/g, '""')}"`;
 
 // Pantalla de resumen de gastos en facturas de compra.
 export default function FinanzasView() {
@@ -99,29 +97,40 @@ export default function FinanzasView() {
     const totalIva = facturasFiltradas.reduce((acc, f) => acc + f.iva, 0);
     const totalGastos = facturasFiltradas.reduce((acc, f) => acc + f.total, 0);
 
-    // Descarga las facturas visibles en un archivo CSV.
-    const exportarFacturasCSV = () => {
-        const encabezados = ['N° Factura', 'Fecha', 'Proveedor', 'Materiales / Detalle', 'Neto', 'IVA 19%', 'Total'];
-        const filas = facturasFiltradas.map((f) => [
-            limpiarCeldaCSV(f.documento),
-            limpiarCeldaCSV(f.fecha),
-            limpiarCeldaCSV(f.proveedor),
-            limpiarCeldaCSV(f.detalle),
-            f.neto,
-            f.iva,
-            f.total,
-        ]);
-
-        const contenido = '\uFEFF' + [encabezados.join(','), ...filas.map((fila) => fila.join(','))].join('\n');
-        const archivo = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(archivo);
-        const enlace = document.createElement('a');
-        enlace.href = url;
-        enlace.download = `gastos_facturas_${mesSeleccionado}.csv`;
-        document.body.appendChild(enlace);
-        enlace.click();
-        document.body.removeChild(enlace);
-        URL.revokeObjectURL(url);
+    // Descarga las facturas visibles en un archivo Excel.
+    const exportarFacturasExcel = async () => {
+        await exportarExcel({
+            nombreArchivo: `gastos_facturas_${mesSeleccionado}.xlsx`,
+            nombreHoja: 'Gastos Facturas',
+            titulo: 'Control de Gastos en Facturas de Compra',
+            subtitulo: `Período: ${etiquetaPeriodo}`,
+            columnas: [
+                { header: 'N° Factura', key: 'documento', width: 15, alineacion: 'center' },
+                { header: 'Fecha Emisión', key: 'fecha', width: 15, alineacion: 'center' },
+                { header: 'Proveedor', key: 'proveedor', width: 32 },
+                { header: 'Materiales / Detalle', key: 'detalle', width: 38 },
+                { header: 'Valor Neto', key: 'neto', width: 16, formato: 'moneda' },
+                { header: 'IVA (19%)', key: 'iva', width: 15, formato: 'moneda' },
+                { header: 'Total Factura', key: 'total', width: 17, formato: 'moneda' },
+                { header: 'Estado', key: 'estado', width: 14, alineacion: 'center' },
+            ],
+            filas: facturasFiltradas.map((f) => ({
+                documento: f.documento,
+                fecha: f.fecha,
+                proveedor: f.proveedor,
+                detalle: f.detalle,
+                neto: Number(f.neto || 0),
+                iva: Number(f.iva || 0),
+                total: Number(f.total || 0),
+                estado: f.estado,
+            })),
+            filaTotales: {
+                detalle: `TOTALES (${etiquetaPeriodo.toUpperCase()})`,
+                neto: totalNeto,
+                iva: totalIva,
+                total: totalGastos,
+            },
+        });
     };
 
     const etiquetaPeriodo = mesSeleccionado === 'todos' ? 'Acumulado total' : formatearMes(mesSeleccionado);
@@ -197,9 +206,9 @@ export default function FinanzasView() {
                         <span className='finanzas-table-meta'>
                             {facturasFiltradas.length} facturas mostradas
                         </span>
-                        <button type='button' onClick={exportarFacturasCSV} disabled={facturasFiltradas.length === 0} className='finanzas-btn-export'>
+                        <button type='button' onClick={exportarFacturasExcel} disabled={facturasFiltradas.length === 0} className='finanzas-btn-export'>
                             <Download size={14} />
-                            <span>Exportar CSV</span>
+                            <span>Exportar Excel</span>
                         </button>
                     </div>
                 </div>

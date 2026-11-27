@@ -17,6 +17,7 @@ import { ObrasPage } from './pages/Obras';
 
 import { obtenerUsuarioActual, iniciarMonitorInactividad, } from './services_api/authService';
 import { obtenerArticulos } from './services_api/inventarioService';
+import './styles/darkTheme.css';
 
 // Cargos que pueden ver el inventario y recibir avisos de stock bajo.
 const CARGOS_AVISO_STOCK = [
@@ -54,6 +55,28 @@ function AppContent() {
     // Controla si la barra lateral está expandida o colapsada en modo compacto.
     const [sidebarExpandida, setSidebarExpandida] = useState(false);
     const navigate = useNavigate();
+
+    const [temaOscuro, setTemaOscuro] = useState(() => {
+        try {
+            const guardado = localStorage.getItem('fyag_tema');
+            if (guardado === 'dark' || guardado === 'light') {
+                return guardado === 'dark';
+            }
+            return window.matchMedia?.('(prefers-color-scheme: dark)').matches || false;
+        } catch {
+            return false;
+        }
+    });
+
+    useEffect(() => {
+        const tema = temaOscuro ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', tema);
+        try {
+            localStorage.setItem('fyag_tema', tema);
+        } catch {
+            // Si el navegador restringe almacenamiento local, el tema sigue funcionando en memoria.
+        }
+    }, [temaOscuro]);
 
     // Consulta el inventaio actual para mantener actualizado el contador de alertas de la barra lateral.
     const recargarAlertasStock = useCallback((rolUsuario) => {
@@ -294,6 +317,8 @@ function AppContent() {
                 stockCriticoCount={stockCriticoCount}
                 expandida={sidebarExpandida}
                 onToggleExpandida={() => setSidebarExpandida((prev) => !prev)}
+                temaOscuro={temaOscuro}
+                onToggleTema={() => setTemaOscuro((prev) => !prev)}
             />
 
             <main className={`app-main ${sidebarExpandida ? 'sidebar-expandida' : 'sidebar-colapsada'}`}>
